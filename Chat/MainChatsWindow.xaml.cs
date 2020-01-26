@@ -22,9 +22,17 @@ namespace Chat
     /// </summary>
     public partial class MainChatsWindow : Window
     {
+        /// <summary>
+        /// The list that controls the messages in main list
+        /// </summary>
         public ObservableCollection<MainMessagesINotify> MessagesList { get; set; } = new ObservableCollection<MainMessagesINotify>();
+        /// <summary>
+        /// Saved data is loaded here
+        /// </summary>
         private readonly JsonTypes.SavedData _savedData;
-        private readonly SQLiteAsyncConnection _db;
+        /// <summary>
+        /// A mutex like thing to control message receiving flow
+        /// </summary>
         private readonly SemaphoreSlim _mu = new SemaphoreSlim(1,1);
         public MainChatsWindow()
         {
@@ -32,27 +40,27 @@ namespace Chat
             // load saved data
             _savedData = JsonConvert.DeserializeObject<JsonTypes.SavedData>(Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(Properties.Settings.Default.LoginData),null,DataProtectionScope.CurrentUser)));
             HelloTitle.Text = "Hello " + Properties.Settings.Default.Name;
-            HelloTitle.Text = "Hello Hirbod";
+            HelloTitle.Text = "Hello Hirbod"; // TODO: REMOVE
             // set the ssl policy
             if (Properties.Settings.Default.TrustInvalidSSL)
                 ServicePointManager.ServerCertificateValidationCallback = (a, b, c, d) => true;
             // load the db
-            _db = new SQLiteAsyncConnection("database.db");
+            SharedStuff.Database = new SQLiteAsyncConnection("database.db");
         }
         private async void FrameworkElement_OnLoaded(object sender, RoutedEventArgs e)
         {
             // create tables
-            await _db.CreateTablesAsync<DatabaseHelper.Messages,DatabaseHelper.Files,DatabaseHelper.Users>();
+            await SharedStuff.Database.CreateTablesAsync<DatabaseHelper.Messages,DatabaseHelper.Files,DatabaseHelper.Users>();
             // get all of the users that have messaged the user and get their last message
             {
                 // at first get list of all users
-                var users = await _db.Table<DatabaseHelper.Users>().ToArrayAsync();
+                var users = await SharedStuff.Database.Table<DatabaseHelper.Users>().ToArrayAsync();
                 var msgs = new MainMessagesINotify[users.Length];
                 // then select last message of the users from Messages table
                 for (int i = 0;i<users.Length;i++)
                 {
                     var lastMsgQ =
-                        await _db.QueryAsync<DatabaseHelper.Messages>("SELECT * FROM Messages WHERE Username == ? ORDER BY ID DESC LIMIT 1",users[i].Username);
+                        await SharedStuff.Database.QueryAsync<DatabaseHelper.Messages>("SELECT * FROM Messages WHERE Username == ? ORDER BY ID DESC LIMIT 1",users[i].Username);
                     if (lastMsgQ.Count > 0)
                     {
                         var lastMsg = lastMsgQ[0];
@@ -125,7 +133,7 @@ namespace Chat
             try
             {
                 var msg = JsonConvert.DeserializeObject<JsonTypes.Updates>(e.Data);
-                var keyList = await _db.Table<DatabaseHelper.Users>().Where(k => k.Username == msg.Payload.From)
+                var keyList = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(k => k.Username == msg.Payload.From)
                     .ToArrayAsync(); // get the key of the user
                 string key;
                 if (keyList.Length == 0) // Key agreement
@@ -141,7 +149,7 @@ namespace Chat
                     key = Convert.ToBase64String(SharedStuff.Curve.calculateAgreement(
                         Convert.FromBase64String(_savedData.PrivateKey),
                         Convert.FromBase64String(data.PublicKey)));
-                    await _db.InsertAsync(new DatabaseHelper.Users // save the key in database
+                    await SharedStuff.Database.InsertAsync(new DatabaseHelper.Users // save the key in database
                     {
                         Username = data.Username,
                         Name = data.Name,
@@ -166,7 +174,7 @@ namespace Chat
 
                 // save the value
                 int index = MessagesList.IndexOf(MessagesList.First(x => x.Username == msg.Payload.From)); // get index of the UI
-                await _db.RunInTransactionAsync(tran =>
+                await SharedStuff.Database.RunInTransactionAsync(tran =>
                 {
                     tran.Insert(new DatabaseHelper.Messages()
                     {
@@ -210,7 +218,7 @@ namespace Chat
                     return;
                 string id = dialog.IdTextBox.Text;
                 // check if the ID exists in database
-                var dbResult = await _db.Table<DatabaseHelper.Users>().Where(user => user.Username == id)
+                var dbResult = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == id)
                     .ToArrayAsync();
                 if (dbResult.Length == 0) // get the user's key from server
                 {
@@ -236,7 +244,7 @@ namespace Chat
                         string key = Convert.ToBase64String(SharedStuff.Curve.calculateAgreement(
                             Convert.FromBase64String(_savedData.PrivateKey),
                             Convert.FromBase64String(data.PublicKey)));
-                        await _db.InsertAsync(new DatabaseHelper.Users // save the key in database
+                        await SharedStuff.Database.InsertAsync(new DatabaseHelper.Users // save the key in database
                         {
                             Username = data.Username,
                             Name = data.Name,

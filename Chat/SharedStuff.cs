@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Web;
 using Org.BouncyCastle.Crypto;
 using org.whispersystems.curve25519;
+using SQLite;
 using WebSocketSharp;
 
 namespace Chat
@@ -18,9 +19,13 @@ namespace Chat
         /// </summary>
         public static readonly HttpClient Client = new HttpClient();
         /// <summary>
-        /// Main websocket that all of the users use it
+        /// Main websocket that all of the windows use it
         /// </summary>
         public static WebSocket Websocket;
+        /// <summary>
+        /// The SQLite database of messages
+        /// </summary>
+        public static SQLiteAsyncConnection Database;
         /// <summary>
         /// This value holds the RSA public key of the server
         /// </summary>
