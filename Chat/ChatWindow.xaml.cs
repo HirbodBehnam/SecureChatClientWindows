@@ -23,6 +23,10 @@ namespace Chat
         /// </summary>
         private long _lastMessageIndex = 100;
         /// <summary>
+        /// Check to see if the user has reached the end of it's messages
+        /// </summary>
+        private bool _reachedEnd = false;
+        /// <summary>
         /// The username of the user that the client is chatting with
         /// </summary>
         public string Username { get; set; }
@@ -50,6 +54,8 @@ namespace Chat
             // load fist 100 messages
             var messages = await SharedStuff.Database.QueryAsync<DatabaseHelper.Messages>
                 ("SELECT * FROM Messages WHERE Username == ? ORDER BY Id DESC LIMIT 100",Username); //TODO: Write a function with offset and... to fetch data from db
+            if (messages.Count < 100) // prevent additional load on db
+                _reachedEnd = true;
 //            foreach (var message in messages)
 //            {
 //                MessagesList.Insert(0,new ChatMessagesNotify
@@ -75,6 +81,18 @@ namespace Chat
         public void AddMessage()
         {
 
+        }
+        /// <summary>
+        /// Use this method to get older messages when VerticalOffset reaches 0 (scrolled to top)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainScrollViewer_OnScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (!_reachedEnd && Math.Abs(e.VerticalOffset) < 1)
+            {
+
+            }
         }
     }
 }

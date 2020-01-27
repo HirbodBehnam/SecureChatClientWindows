@@ -18,7 +18,7 @@
         Title="ChatWindow" Height="450" Width="800">
     <materialDesign:DialogHost DialogTheme="Dark" Loaded="Page_OnLoaded" x:Name="WindowDialogHost">
         <Grid>
-            <ScrollViewer x:Name="MainScrollViewer">
+            <ScrollViewer x:Name="MainScrollViewer" ScrollChanged="MainScrollViewer_OnScrollChanged">
                 <ItemsControl VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Grid.IsSharedSizeScope="True"
                               HorizontalContentAlignment="Stretch"
                               ItemsSource="{Binding MessagesList}" Padding="10">
