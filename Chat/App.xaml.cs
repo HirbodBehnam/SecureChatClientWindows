@@ -17,7 +17,7 @@ namespace Chat
         protected override void OnStartup(StartupEventArgs e)
         {
             StartupUri = string.IsNullOrWhiteSpace(Settings.Default.LoginData) ? new Uri("LoginWindow.xaml", UriKind.Relative) : new Uri("MainChatsWindow.xaml", UriKind.Relative);
-            StartupUri = new Uri("MainChatsWindow.xaml", UriKind.Relative); //TODO: REMOVE THIS LINE
+            StartupUri = new Uri("ChatWindow.xaml", UriKind.Relative); //TODO: REMOVE THIS LINE
         }
     }
 }

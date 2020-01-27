@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -23,9 +24,13 @@ namespace Chat
     public partial class MainChatsWindow : Window
     {
         /// <summary>
+        /// This value is used to control the open chat windows; If a window is open, do not allow reopening
+        /// </summary>
+        public static Dictionary<string,ChatWindow> OpenWindowsList = new Dictionary<string,ChatWindow>();
+        /// <summary>
         /// The list that controls the messages in main list
         /// </summary>
-        public ObservableCollection<MainMessagesINotify> MessagesList { get; set; } = new ObservableCollection<MainMessagesINotify>();
+        public ObservableCollection<MainMessagesNotify> MessagesList { get; set; } = new ObservableCollection<MainMessagesNotify>();
         /// <summary>
         /// Saved data is loaded here
         /// </summary>
@@ -55,7 +60,7 @@ namespace Chat
             {
                 // at first get list of all users
                 var users = await SharedStuff.Database.Table<DatabaseHelper.Users>().ToArrayAsync();
-                var msgs = new MainMessagesINotify[users.Length];
+                var msgs = new MainMessagesNotify[users.Length];
                 // then select last message of the users from Messages table
                 for (int i = 0;i<users.Length;i++)
                 {
@@ -64,7 +69,7 @@ namespace Chat
                     if (lastMsgQ.Count > 0)
                     {
                         var lastMsg = lastMsgQ[0];
-                        msgs[i] = new MainMessagesINotify
+                        msgs[i] = new MainMessagesNotify
                         {
                             Username = users[i].Username,
                             IsLastMessageForUser = lastMsg.MyMessage,
@@ -123,6 +128,7 @@ namespace Chat
                 {
                     // TODO: HANDLE THIS SHIT
                 }
+                return;
             }
             catch (Exception)
             {
@@ -194,6 +200,11 @@ namespace Chat
                 MessagesList[0].FullDate = msg.Payload.Date;
                 MessagesList[0].Message = msg.Payload.Message;
                 MessagesList[0].NewMessages++;
+                // update the open windows
+                if (OpenWindowsList.ContainsKey(msg.Payload.From))
+                {
+
+                }
             }
             catch (Exception)
             {

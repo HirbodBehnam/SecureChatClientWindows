@@ -56,7 +56,7 @@
                     materialDesign:HintAssist.Hint="Search"
                     Width="150"/>
             </DockPanel>
-            <ListBox VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,100,0,0" x:Name="PatientHistoryList"
+            <ListBox VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,100,0,0"
                      Grid.IsSharedSizeScope="True" HorizontalContentAlignment="Stretch"
                      SelectionMode="Single" ItemsSource="{Binding MessagesList}" IsSynchronizedWithCurrentItem="True">
                 <ListBox.ItemTemplate>
