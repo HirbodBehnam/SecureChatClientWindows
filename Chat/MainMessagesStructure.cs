@@ -128,6 +128,7 @@ namespace Chat
         private bool _myMessage;
         private string _message;
         private DateTime _date;
+        private byte _type;
         /// <summary>
         /// True if the user sent this message; If it's an incoming message it's false
         /// </summary>
@@ -174,6 +175,20 @@ namespace Chat
         /// Get the time that message is received in string
         /// </summary>
         public string Date => _date.ToString("G");
+        /// <summary>
+        /// The type of message. 0 -> Text message, 1 -> File
+        /// </summary>
+        public byte Type
+        {
+            get => _type;
+            set
+            {
+                if(_type == value)
+                    return;
+                _type = value;
+                OnPropertyChanged();
+            }
+        }
 //        public Brush CardColor => new SolidColorBrush(_myMessage ? Color.FromRgb(255,209,128) : Color.FromRgb(66,66,66));
         /// <summary>
         /// Card alignment of the messages according to the message sent

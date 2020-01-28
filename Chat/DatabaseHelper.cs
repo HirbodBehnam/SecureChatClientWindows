@@ -85,5 +85,15 @@ namespace Chat
             /// </summary>
             public string Location { get; set; }
         }
+        /// <summary>
+        /// Returns a query where selects a number of messages of a username (Username is defined by ?)
+        /// </summary>
+        /// <param name="from">From what message (0 is last message)</param>
+        /// <param name="count">How many messages?</param>
+        /// <returns>A query</returns>
+        public static string LastRowsQuery(int from, int count)
+        {
+            return "SELECT * FROM Messages WHERE Username == ? ORDER BY Id DESC LIMIT " + from + "," + count;
+        }
     }
 }

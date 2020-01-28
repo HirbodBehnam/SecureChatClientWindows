@@ -25,8 +25,11 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <materialDesign:Card UniformCornerRadius="3" Padding="10" Background="#424242"
-                                                 HorizontalAlignment="{Binding MessageAlignment}">
-                                <TextBlock Text="{Binding Message}" ToolTip="{Binding Date}" />
+                                                 HorizontalAlignment="{Binding MessageAlignment}" Margin="0,5,0,5"
+                                                 MaxWidth="300">
+                                <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}" 
+                                         Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
+                                         Style="{x:Null}" Foreground="White" IsReadOnly="True"/>
                             </materialDesign:Card>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

@@ -21,11 +21,19 @@ namespace Chat
         /// <summary>
         /// We load each 100 messages at once; Save the last loaded message. Add one to this value on every new message to increase the offset. Also add 100 to it on scrolling up
         /// </summary>
-        private long _lastMessageIndex = 100;
+        private int _lastMessageIndex = 100;
         /// <summary>
         /// Check to see if the user has reached the end of it's messages
         /// </summary>
         private bool _reachedEnd = false;
+        /// <summary>
+        /// A small variable to control when to load messages from database
+        /// </summary>
+        private bool _stopLoading = true;
+        /// <summary>
+        /// 
+        /// </summary>
+        private int _timesDbLoaded = 1;
         /// <summary>
         /// The username of the user that the client is chatting with
         /// </summary>
@@ -53,46 +61,78 @@ namespace Chat
                 .FirstAsync()).Name;
             // load fist 100 messages
             var messages = await SharedStuff.Database.QueryAsync<DatabaseHelper.Messages>
-                ("SELECT * FROM Messages WHERE Username == ? ORDER BY Id DESC LIMIT 100",Username); //TODO: Write a function with offset and... to fetch data from db
+                (DatabaseHelper.LastRowsQuery(0,100),Username);
             if (messages.Count < 100) // prevent additional load on db
                 _reachedEnd = true;
-//            foreach (var message in messages)
-//            {
-//                MessagesList.Insert(0,new ChatMessagesNotify
-//                {
-//                    MyMessage = message.MyMessage,
-//                    Message = message.Payload,
-//                    FullDate = message.Date
-//                });
-//            }
-            for (int i = 0; i < 30;i++)
+            foreach (var message in messages)
             {
                 MessagesList.Insert(0,new ChatMessagesNotify
                 {
-                    MyMessage = i % 2 == 0,
-                    Message = i.ToString(),
-                    FullDate = DateTime.Now
+                    MyMessage = message.MyMessage,
+                    Message = message.Payload,
+                    FullDate = message.Date,
+                    Type = message.Type
                 });
             }
 
             MainScrollViewer.ScrollToBottom(); // Go to the last of scroll view that is actually the first of it
+            MainScrollViewer.UpdateLayout();
+            _stopLoading = false;
         }
-
-        public void AddMessage()
+        /// <summary>
+        /// Adds a message to UI
+        /// </summary>
+        /// <param name="myMessage">Is this incoming message or not</param>
+        /// <param name="data">The data of message (plain string or file token)</param>
+        /// <param name="date">The date this message has been received</param>
+        /// <param name="type">0 -> String message, 1 -> File token</param>
+        public void AddMessage(bool myMessage,string data,DateTime date,byte type)
         {
-
+            _lastMessageIndex++;
+            MessagesList.Add(new ChatMessagesNotify
+            {
+                MyMessage = myMessage,
+                Message = data,
+                FullDate = date,
+                Type = type
+            });
         }
         /// <summary>
         /// Use this method to get older messages when VerticalOffset reaches 0 (scrolled to top)
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void MainScrollViewer_OnScrollChanged(object sender, ScrollChangedEventArgs e)
+        private async void MainScrollViewer_OnScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            if (!_reachedEnd && Math.Abs(e.VerticalOffset) < 1)
+            if (!_stopLoading && !_reachedEnd && Math.Abs(e.VerticalOffset) < 1) // load more messages
             {
-
+                _stopLoading = true;
+                var messages = await SharedStuff.Database.QueryAsync<DatabaseHelper.Messages>
+                    (DatabaseHelper.LastRowsQuery(_lastMessageIndex,100),Username);
+                _lastMessageIndex += 100;
+                // check if we have reached the end
+                if (messages.Count < 100)
+                    _reachedEnd = true;
+                if (messages.Count == 0)
+                    return;
+                // insert these messages at the end of the list view (that is first of the collation)
+                foreach (var message in messages)
+                {
+                    MessagesList.Insert(0, new ChatMessagesNotify
+                    {
+                        MyMessage = message.MyMessage,
+                        Message = message.Payload,
+                        FullDate = message.Date,
+                        Type = message.Type
+                    });
+                }
+                //TODO: FIND BETTER WAY
+                MainScrollViewer.UpdateLayout();
+                MainScrollViewer.ScrollToVerticalOffset(MainScrollViewer.ScrollableHeight / ++_timesDbLoaded);
+                MainScrollViewer.UpdateLayout();
+                _stopLoading = false;
             }
+            
         }
     }
 }
