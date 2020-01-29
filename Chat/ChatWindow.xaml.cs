@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Newtonsoft.Json;
-using SQLite;
 
 namespace Chat
 {
@@ -17,7 +18,7 @@ namespace Chat
         /// <summary>
         /// Check to see if the user has reached the end of it's messages
         /// </summary>
-        private bool _reachedEnd = false;
+        private bool _reachedEnd;
         /// <summary>
         /// A small variable to control when to load messages from database
         /// </summary>
@@ -69,15 +70,42 @@ namespace Chat
         }
         private async void SendBtnClicked(object sender, RoutedEventArgs e)
         {
+            string message = MessageTextBox.Text;
+            await Task.Run(() => SendMessage(message));
+            // add it to ui
+            AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
+            MessageTextBox.Text = "";
+            MessageTextBox.Focus();
+            MainScrollViewer.ScrollToBottom();
+            MainScrollViewer.UpdateLayout();
+        }
+        private async void MessageTextBox_OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+                if (Keyboard.IsKeyDown(Key.Enter))
+                {
+                    string message = MessageTextBox.Text;
+                    await Task.Run(() => SendMessage(message));
+                    // add it to ui
+                    AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
+                    MessageTextBox.Text = "";
+                    MessageTextBox.Focus();
+                    MainScrollViewer.ScrollToBottom();
+                    MainScrollViewer.UpdateLayout();
+                }
+        }
+
+        public async void SendMessage(string message)
+        {
             // do not send the message if it's empty
-            if(string.IsNullOrWhiteSpace(MessageTextBox.Text))
+            if(string.IsNullOrWhiteSpace(message))
                 return;
             // encrypt the message with other user's key
             string encryptedMessage;
             {
                 string key = (await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == Username)
                     .FirstAsync()).Key;
-                encryptedMessage = BouncyCastleHelper.AesGcmEncrypt(MessageTextBox.Text, key);
+                encryptedMessage = BouncyCastleHelper.AesGcmEncrypt(message, key);
             }
             // create json
             string json = JsonConvert.SerializeObject(new JsonTypes.SendMessage
@@ -95,7 +123,7 @@ namespace Chat
             await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages{
                 Date = DateTime.Now,
                 MyMessage = true,
-                Payload = MessageTextBox.Text,
+                Payload = message,
                 Type = 0,
                 Username = Username
             });
@@ -103,12 +131,9 @@ namespace Chat
             Application.Current.Dispatcher.Invoke(delegate
             {
                 var u = MainChatsWindow.MessagesList.First(x => x.Username == Username);
-                u.Message = MessageTextBox.Text;
+                u.Message = message;
                 u.IsLastMessageForUser = true;
             });
-            // add it to ui
-            AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
-            MessageTextBox.Text = "";
         }
         /// <summary>
         /// Adds a message to UI
@@ -130,6 +155,16 @@ namespace Chat
                     Type = type
                 });
             });
+            if (!myMessage)
+            {
+                // scroll to bottom if needed
+                MainScrollViewer.UpdateLayout();
+                if (MainScrollViewer.ScrollableHeight - MainScrollViewer.VerticalOffset < 30)
+                {
+                    MainScrollViewer.ScrollToBottom();
+                    MainScrollViewer.UpdateLayout();
+                }
+            }
         }
         /// <summary>
         /// Use this method to get older messages when VerticalOffset reaches 0 (scrolled to top)

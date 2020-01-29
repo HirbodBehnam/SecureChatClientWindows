@@ -224,6 +224,7 @@ namespace Chat
                         MessagesList.Move(index, 0);
                         MessagesList[0].FullDate = msg.Payload.Date;
                         MessagesList[0].Message = message;
+                        MessagesList[0].IsLastMessageForUser = false;
                         if (!open)
                             MessagesList[0].NewMessages++;
                     });

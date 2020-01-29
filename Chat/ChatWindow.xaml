@@ -36,8 +36,8 @@
                 </ItemsControl>
             </ScrollViewer>
             <TextBox materialDesign:HintAssist.Hint="Message" Margin="0,0,75,0" VerticalAlignment="Bottom" 
-                     Height="75" x:Name="MessageTextBox" AcceptsReturn="True" TextWrapping="Wrap"
-                     Style="{StaticResource MaterialDesignFilledTextFieldTextBox}"/>
+                     Height="75" x:Name="MessageTextBox" AcceptsReturn="True" TextWrapping="Wrap" KeyDown="MessageTextBox_OnKeyDown"
+                     Style="{StaticResource MaterialDesignFilledTextFieldTextBox}" MaxLength="4096"/>
             <Button
                 Style="{StaticResource MaterialDesignFloatingActionLightButton}" HorizontalAlignment="Right"
                 ToolTip="Send" VerticalAlignment="Bottom"
