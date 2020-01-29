@@ -112,12 +112,15 @@ namespace Chat
         public void AddMessage(bool myMessage,string data,DateTime date,byte type)
         {
             _lastMessageIndex++;
-            MessagesList.Add(new ChatMessagesNotify
+            Application.Current.Dispatcher.Invoke(delegate
             {
-                MyMessage = myMessage,
-                Message = data,
-                FullDate = date,
-                Type = type
+                MessagesList.Add(new ChatMessagesNotify
+                {
+                    MyMessage = myMessage,
+                    Message = data,
+                    FullDate = date,
+                    Type = type
+                });
             });
         }
         /// <summary>

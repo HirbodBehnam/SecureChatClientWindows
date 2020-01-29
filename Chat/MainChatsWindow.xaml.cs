@@ -197,6 +197,7 @@ namespace Chat
                             Message = message,
                             IsLastMessageForUser = false,
                             Name = name,
+                            NewMessages = 1,
                             Username = msg.Payload.From
                         });
                     });
@@ -213,13 +214,8 @@ namespace Chat
                         Payload = message
                     });
                     if (!open)
-                    {
-                        tran.Update(new DatabaseHelper.Users
-                        {
-                            Username = msg.Payload.From,
-                            UnreadMessages = MessagesList[index].NewMessages + 1
-                        });
-                    }
+                        tran.Execute("UPDATE Users SET UnreadMessages = ? WHERE Username = ?",
+                            MessagesList[index].NewMessages + 1, msg.Payload.From);
                 });
                 if (!inserted)
                 {
@@ -353,6 +349,10 @@ namespace Chat
                 {
                     OpenWindowsList.Add(selectedChat.Username, new ChatWindow(selectedChat.Username));
                     OpenWindowsList[selectedChat.Username].Show();
+                    // reset new messages
+                    MessagesList.First(x => x == selectedChat).NewMessages = 0;
+                    SharedStuff.Database.ExecuteAsync("UPDATE Users SET UnreadMessages = ? WHERE Username = ?",
+                        0,selectedChat.Username);
                 }
                 else
                     OpenWindowsList[selectedChat.Username].Activate();

@@ -73,7 +73,7 @@ namespace Chat
                 if (_date == value)
                     return;
                 _date = value;
-                OnPropertyChanged();
+                OnPropertyChanged("Date");
             }
         }
         /// <summary>
@@ -91,7 +91,7 @@ namespace Chat
                 if (_messagesCount == value)
                     return;
                 _messagesCount = value;
-                OnPropertyChanged();
+                OnPropertyChanged("SmallCircle");
             }
         }
         /// <summary>
@@ -105,7 +105,7 @@ namespace Chat
                 if (_lastMessageForUser == value)
                     return;
                 _lastMessageForUser = value;
-                OnPropertyChanged();
+                OnPropertyChanged("LastSender");
             }
         }
         /// <summary>
