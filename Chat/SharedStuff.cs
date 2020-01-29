@@ -1,8 +1,11 @@
 ﻿using System.Collections.Specialized;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using System.Web;
+using Newtonsoft.Json;
 using Org.BouncyCastle.Crypto;
 using org.whispersystems.curve25519;
 using SQLite;
@@ -60,5 +63,17 @@ namespace Chat
         /// <param name="nvc">Parameters</param>
         /// <returns>The url with parameters</returns>
         public static string CreateUrlWithQuery(string url, NameValueCollection nvc) => url + ToQueryString(nvc);
+
+        public static async Task<JsonTypes.UserDataStruct> GetUserData(string username)
+        {
+            NameValueCollection queryString = HttpUtility.ParseQueryString(string.Empty);
+            queryString.Add("username", username);
+            string url = CreateUrlWithQuery(
+                "https://" + Properties.Settings.Default.ServerAddress + "/users/getData", queryString);
+            string result;
+            using (WebClient wc = new WebClient()) // request other user's public key
+                result = await wc.DownloadStringTaskAsync(url);
+            return JsonConvert.DeserializeObject<JsonTypes.UserDataStruct>(result);
+        }
     }
 }

@@ -46,7 +46,6 @@ namespace Chat
             // load saved data
             _savedData = JsonConvert.DeserializeObject<JsonTypes.SavedData>(Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(Properties.Settings.Default.LoginData),null,DataProtectionScope.CurrentUser)));
             HelloTitle.Text = "Hello " + Properties.Settings.Default.Name;
-            HelloTitle.Text = "Hello Hirbod"; // TODO: REMOVE
             // set the ssl policy
             if (Properties.Settings.Default.TrustInvalidSSL)
                 ServicePointManager.ServerCertificateValidationCallback = (a, b, c, d) => true;
@@ -124,11 +123,13 @@ namespace Chat
             try
             {
                 var status = JsonConvert.DeserializeObject<JsonTypes.ServerStatus>(e.Data);
-                if (!status.Ok)
+                if (status.Ok)
+                    return;
+                if (status.Message != null && !status.Ok)
                 {
                     // TODO: HANDLE THIS SHIT
+                    return;
                 }
-                return;
             }
             catch (Exception)
             {
@@ -136,6 +137,7 @@ namespace Chat
             }
             // try ClientUpdateTypeStruct
             await _mu.WaitAsync(); // get the data in order that server sends them
+            string nameSafe = "";
             try
             {
                 var msg = JsonConvert.DeserializeObject<JsonTypes.Updates>(e.Data);
@@ -144,14 +146,7 @@ namespace Chat
                 string key;
                 if (keyList.Length == 0) // Key agreement
                 {
-                    NameValueCollection queryString = HttpUtility.ParseQueryString(string.Empty);
-                    queryString.Add("username", msg.Payload.From);
-                    string url = SharedStuff.CreateUrlWithQuery(
-                        "https://" + Properties.Settings.Default.ServerAddress + "/users/getData", queryString);
-                    string result;
-                    using (WebClient wc = new WebClient()) // request other user's public key
-                        result = await wc.DownloadStringTaskAsync(url);
-                    var data = JsonConvert.DeserializeObject<JsonTypes.UserDataStruct>(result);
+                    var data = await SharedStuff.GetUserData(msg.Payload.From);
                     key = Convert.ToBase64String(SharedStuff.Curve.calculateAgreement(
                         Convert.FromBase64String(_savedData.PrivateKey),
                         Convert.FromBase64String(data.PublicKey)));
@@ -161,6 +156,7 @@ namespace Chat
                         Name = data.Name,
                         Key = key,
                     });
+                    nameSafe = data.Name;
                 }
                 else // get the key from database; There is only one row because Username is unique
                     key = keyList[0].Key;
@@ -179,8 +175,34 @@ namespace Chat
                 }
 
                 // save the value
-                bool open = OpenWindowsList.ContainsKey(msg.Payload.From);
-                int index = MessagesList.IndexOf(MessagesList.First(x => x.Username == msg.Payload.From)); // get index of the UI
+                bool inserted = false, open = OpenWindowsList.ContainsKey(msg.Payload.From);
+                int index = -1;
+                try
+                {
+                    index = MessagesList.IndexOf(MessagesList.First(x =>
+                        x.Username == msg.Payload.From)); // get index of the UI
+                    if (index == -1)
+                        throw new Exception();
+                }
+                catch (Exception)
+                {
+                    string name = nameSafe;
+                    if(name == "")
+                        name = (await SharedStuff.GetUserData(msg.Payload.From)).Name;
+                    Application.Current.Dispatcher.Invoke(delegate 
+                    {
+                        MessagesList.Insert(0,new MainMessagesNotify
+                        {
+                            FullDate = msg.Payload.Date,
+                            Message = message,
+                            IsLastMessageForUser = false,
+                            Name = name,
+                            Username = msg.Payload.From
+                        });
+                    });
+                    inserted = true;
+                }
+
                 await SharedStuff.Database.RunInTransactionAsync(tran =>
                 {
                     tran.Insert(new DatabaseHelper.Messages()
@@ -192,24 +214,31 @@ namespace Chat
                     });
                     if (!open)
                     {
-                        tran.Update(new DatabaseHelper.Users()
+                        tran.Update(new DatabaseHelper.Users
                         {
                             Username = msg.Payload.From,
                             UnreadMessages = MessagesList[index].NewMessages + 1
                         });
                     }
                 });
-                // Show the user the update
-                MessagesList.Move(index,0);
-                MessagesList[0].FullDate = msg.Payload.Date;
-                MessagesList[0].Message = message;
-                if(!open)
-                    MessagesList[0].NewMessages++;
+                if (!inserted)
+                {
+                    Application.Current.Dispatcher.Invoke(delegate
+                    {
+                        // Show the user the update
+                        MessagesList.Move(index, 0);
+                        MessagesList[0].FullDate = msg.Payload.Date;
+                        MessagesList[0].Message = message;
+                        if (!open)
+                            MessagesList[0].NewMessages++;
+                    });
+                }
+
                 // update the open windows
                 if (open)
                     OpenWindowsList[msg.Payload.From].AddMessage(false, message, msg.Payload.Date, 0);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // TODO: HANDLE THIS SHIT
             }
@@ -226,17 +255,16 @@ namespace Chat
         {
             var dialog = new AddChatDialog();
             string username = "";
-            bool done = false;
+            byte delegateResult = 0; // 0 is running, 1 is done, 2 is canceled
             Exception error = null;
             await DialogHost.Show(dialog,"MainWindowDialogHost",async delegate(object sender1, DialogClosingEventArgs args)
             {
                 if (!(bool) args.Parameter)
                 {
-                    done = true;
+                    delegateResult = 2;
                     // check if the dialog is canceled
                     return;
                 }
-
                 username = dialog.IdTextBox.Text;
                 // check if the ID exists in database
                 var dbResult = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == username)
@@ -256,13 +284,15 @@ namespace Chat
                     catch (Exception ex)
                     {
                         error = new Exception("Cannot connect to server",ex);
-                        done = true;
+                        delegateResult = 1;
                         return;
                     }
                     // check if the username exists
                     try
                     {
                         var data = JsonConvert.DeserializeObject<JsonTypes.UserDataStruct>(result);
+                        if (data.PublicKey == "")
+                            throw new Exception("User is not logged in.");
                         string key = Convert.ToBase64String(SharedStuff.Curve.calculateAgreement(
                             Convert.FromBase64String(_savedData.PrivateKey),
                             Convert.FromBase64String(data.PublicKey)));
@@ -281,13 +311,15 @@ namespace Chat
                     }
                     finally
                     {
-                        done = true;
+                        delegateResult = 1;
                     }
                 }
             });
             // wait until the results are gathered
-            while (!done)
+            while (delegateResult == 0)
                 await Task.Delay(50);
+            if (delegateResult == 2)
+                return;
             if (error != null)
             {
                 var errDialog = new ErrorDialogSample
@@ -304,6 +336,7 @@ namespace Chat
         }
         private void MainChatsWindow_OnClosing(object sender, CancelEventArgs e)
         {
+            SharedStuff.Websocket.Close(1000);
             Application.Current.Shutdown();
         }
 
