@@ -35,7 +35,6 @@ namespace Chat
         /// <param name="data">Data to encrypt</param>
         /// <returns>Encrypted data</returns>
         public static byte[] RsaEncrypt(AsymmetricKeyParameter key, string data) => RsaEncrypt(key, Encoding.UTF8.GetBytes(data));
-
         /// <summary>
         /// Encrypts the data with RSA oaep SHA 512
         /// </summary>
@@ -73,7 +72,6 @@ namespace Chat
         public static string AesGcmDecrypt(string payload, string key) =>
             Encoding.UTF8.GetString(AesGcmDecrypt(Convert.FromBase64String(payload),
                 Convert.FromBase64String(key)));
-
         /// <summary>
         /// Decrypt a message with AES-GCM cipher; The nonce is first 12 bytes of payload
         /// </summary>
@@ -103,6 +101,45 @@ namespace Chat
             int len = cipher.ProcessBytes(payload, 0, payload.Length, clearBytes, 0);
             cipher.DoFinal(clearBytes, len);
             return clearBytes;
+        }
+        /// <summary>
+        /// Encrypt a string with AES-GCM; Nonce is created randomly
+        /// </summary>
+        /// <param name="payload">The string to encrypt</param>
+        /// <param name="key">The key to encrypt it with</param>
+        /// <returns>Encrypted bytes in base64 format</returns>
+        public static string AesGcmEncrypt(string payload, string key)
+        {
+            return Convert.ToBase64String(AesGcmEncrypt(Encoding.UTF8.GetBytes(payload), 
+                Convert.FromBase64String(key)));
+        }
+        /// <summary>
+        /// Encrypt a byte array with AES-GCM; Nonce is created randomly
+        /// </summary>
+        /// <param name="payload">The array to encrypt</param>
+        /// <param name="key">The key to encrypt it with</param>
+        /// <returns>Encrypted bytes</returns>
+        public static byte[] AesGcmEncrypt(byte[] payload, byte[] key)
+        {
+            byte[] nonce = new byte[12];
+            SharedStuff.SecureRandom.GetBytes(nonce);
+            return AesGcmEncrypt(payload, key, nonce);
+        }
+        /// <summary>
+        /// Encrypt a byte array with AES-GCM; Nonce is created randomly
+        /// </summary>
+        /// <param name="payload">The array to encrypt</param>
+        /// <param name="key">The key to encrypt it with</param>
+        /// <param name="nonce">The nonce to encrypt it with (must be 12 bytes)</param>
+        /// <returns>Encrypted bytes</returns>
+        public static byte[] AesGcmEncrypt(byte[] payload, byte[] key,byte[] nonce)
+        {
+            var cipher = new GcmBlockCipher(new AesEngine());
+            cipher.Init(true,new AeadParameters(new KeyParameter(key), 128, nonce));
+            var cipherBytes = new byte[cipher.GetOutputSize(payload.Length)];
+            int len = cipher.ProcessBytes(payload, 0, payload.Length, cipherBytes, 0);
+            cipher.DoFinal(cipherBytes, len);
+            return nonce.Concat(cipherBytes).ToArray();
         }
     }
 }

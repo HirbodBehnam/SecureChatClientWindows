@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Dynamic;
 
 namespace Chat
 {
@@ -86,6 +87,34 @@ namespace Chat
             /// X25519 public key in base64
             /// </summary>
             public string PublicKey { get; set; }
+        }
+        /// <summary>
+        /// A type that when a message is going to be send, it's used
+        /// </summary>
+        public class SendMessage
+        {
+            /// <summary>
+            /// 0 -&gt; Text message / 1 -&gt; File / 2 -&gt; Handshake
+            /// </summary>
+            public byte Type { get; set; }
+            /// <summary>
+            /// Payload of the message
+            /// </summary>
+            public SendMessagePayload Payload { get; set; }
+        }
+        /// <summary>
+        /// Data of the message that will be sent
+        /// </summary>
+        public class SendMessagePayload
+        {
+            /// <summary>
+            /// Username of the receiver
+            /// </summary>
+            public string To { get; set; }
+            /// <summary>
+            /// Token of the file, or encrypted message
+            /// </summary>
+            public string Message { get; set; }
         }
     }
 }

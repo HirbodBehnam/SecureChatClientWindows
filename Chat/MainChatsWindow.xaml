@@ -56,8 +56,8 @@
                     materialDesign:HintAssist.Hint="Search"
                     Width="150"/>
             </DockPanel>
-            <ListBox VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,100,0,0"
-                     Grid.IsSharedSizeScope="True" HorizontalContentAlignment="Stretch"
+            <ListBox VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,100,0,0" x:Name="MainChatsList"
+                     Grid.IsSharedSizeScope="True" HorizontalContentAlignment="Stretch" SelectionChanged="MainChatsList_OnSelectionChanged"
                      SelectionMode="Single" ItemsSource="{Binding MessagesList}" IsSynchronizedWithCurrentItem="True">
                 <ListBox.ItemTemplate>
                     <DataTemplate>

@@ -14,11 +14,11 @@
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}"
-        WindowStartupLocation="CenterScreen"
-        Title="ChatWindow" Height="450" Width="800">
+        WindowStartupLocation="CenterScreen" MinWidth="450" MinHeight="450"
+        Title="ChatWindow" Height="450" Width="800" Closed="ChatWindow_OnClosed">
     <materialDesign:DialogHost DialogTheme="Dark" Loaded="Page_OnLoaded" x:Name="WindowDialogHost">
         <Grid>
-            <ScrollViewer x:Name="MainScrollViewer" ScrollChanged="MainScrollViewer_OnScrollChanged">
+            <ScrollViewer x:Name="MainScrollViewer" ScrollChanged="MainScrollViewer_OnScrollChanged" Margin="0,0,0,75">
                 <ItemsControl VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Grid.IsSharedSizeScope="True"
                               HorizontalContentAlignment="Stretch"
                               ItemsSource="{Binding MessagesList}" Padding="10">
@@ -35,6 +35,15 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
+            <TextBox materialDesign:HintAssist.Hint="Message" Margin="0,0,75,0" VerticalAlignment="Bottom" 
+                     Height="75" x:Name="MessageTextBox" AcceptsReturn="True" TextWrapping="Wrap"
+                     Style="{StaticResource MaterialDesignFilledTextFieldTextBox}"/>
+            <Button
+                Style="{StaticResource MaterialDesignFloatingActionLightButton}" HorizontalAlignment="Right"
+                ToolTip="Send" VerticalAlignment="Bottom"
+                Margin="0,0,10,10" Click="SendBtnClicked">
+                <materialDesign:PackIcon Kind="Send" Height="24" Width="24" />
+            </Button>
         </Grid>
     </materialDesign:DialogHost>
 </Window>

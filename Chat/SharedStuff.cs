@@ -1,6 +1,7 @@
 ﻿using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Web;
 using Org.BouncyCastle.Crypto;
 using org.whispersystems.curve25519;
@@ -34,6 +35,10 @@ namespace Chat
         /// Use this curve for key exchange
         /// </summary>
         public static readonly Curve25519 Curve = Curve25519.getInstance(Curve25519.BEST);
+        /// <summary>
+        /// Secure random number generator
+        /// </summary>
+        public static RNGCryptoServiceProvider SecureRandom = new RNGCryptoServiceProvider();
         /// <summary>
         /// Create URL quarry from https://stackoverflow.com/a/829138/4213397
         /// </summary>

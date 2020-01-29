@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Windows;
+using System.Windows.Controls;
 using MaterialDesignThemes.Wpf;
 using Newtonsoft.Json;
 using SQLite;
@@ -86,7 +87,7 @@ namespace Chat
                 foreach (var msg in msgs)
                     MessagesList.Add(msg);
             }
-            // connect to server and register the 
+            // connect to server and register the websocket
             return;
             await Task.Run(() =>
             {
@@ -179,6 +180,7 @@ namespace Chat
                 }
 
                 // save the value
+                bool open = OpenWindowsList.ContainsKey(msg.Payload.From);
                 int index = MessagesList.IndexOf(MessagesList.First(x => x.Username == msg.Payload.From)); // get index of the UI
                 await SharedStuff.Database.RunInTransactionAsync(tran =>
                 {
@@ -189,22 +191,24 @@ namespace Chat
                         Date = msg.Payload.Date,
                         Payload = message
                     });
-                    tran.Update(new DatabaseHelper.Users()
+                    if (!open)
                     {
-                        Username = msg.Payload.From,
-                        UnreadMessages = MessagesList[index].NewMessages + 1
-                    });
+                        tran.Update(new DatabaseHelper.Users()
+                        {
+                            Username = msg.Payload.From,
+                            UnreadMessages = MessagesList[index].NewMessages + 1
+                        });
+                    }
                 });
                 // Show the user the update
                 MessagesList.Move(index,0);
                 MessagesList[0].FullDate = msg.Payload.Date;
-                MessagesList[0].Message = msg.Payload.Message;
-                MessagesList[0].NewMessages++;
+                MessagesList[0].Message = message;
+                if(!open)
+                    MessagesList[0].NewMessages++;
                 // update the open windows
-                if (OpenWindowsList.ContainsKey(msg.Payload.From))
-                {
-
-                }
+                if (open)
+                    OpenWindowsList[msg.Payload.From].AddMessage(false, message, msg.Payload.Date, 0);
             }
             catch (Exception)
             {
@@ -222,19 +226,20 @@ namespace Chat
         private async void AddChatButton_OnClick(object sender, RoutedEventArgs e)
         {
             var dialog = new AddChatDialog();
+            string username = "";
             Exception error = null;
             await DialogHost.Show(dialog,  async delegate(object sender1, DialogClosingEventArgs args)
             {
                 if (!(bool) args.Parameter) // check if the dialog is canceled
                     return;
-                string id = dialog.IdTextBox.Text;
+                username = dialog.IdTextBox.Text;
                 // check if the ID exists in database
-                var dbResult = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == id)
+                var dbResult = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == username)
                     .ToArrayAsync();
                 if (dbResult.Length == 0) // get the user's key from server
                 {
                     NameValueCollection queryString = HttpUtility.ParseQueryString(string.Empty);
-                    queryString.Add("username", id);
+                    queryString.Add("username", username);
                     string url = SharedStuff.CreateUrlWithQuery(
                         "https://" + Properties.Settings.Default.ServerAddress + "/users/getData", queryString);
                     string result;
@@ -277,12 +282,35 @@ namespace Chat
                     ErrorText = {Text = error.InnerException.Message}
                 };
                 await DialogHost.Show(errDialog);
+                return;
             }
-            //TODO open the chat page
+            // open the chat page
+            OpenWindowsList.Add(username, new ChatWindow(username)
+            {
+                Owner = this,
+            });
+            OpenWindowsList[username].Show();
         }
         private void MainChatsWindow_OnClosing(object sender, CancelEventArgs e)
         {
             Application.Current.Shutdown();
+        }
+
+        private void MainChatsList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (MainChatsList.SelectedItem != null)
+            {
+                MainMessagesNotify selectedChat = MainChatsList.SelectedItem as MainMessagesNotify;
+                MainChatsList.SelectedItem = null; // select nothing
+                if(selectedChat == null)
+                    return;
+                // open the chat window
+                OpenWindowsList.Add(selectedChat.Username, new ChatWindow(selectedChat.Username)
+                {
+                    Owner = this,
+                });
+                OpenWindowsList[selectedChat.Username].Show();
+            }
         }
     }
     

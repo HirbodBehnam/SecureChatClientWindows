@@ -1,17 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
+using Newtonsoft.Json;
 using SQLite;
 
 namespace Chat
@@ -31,7 +22,7 @@ namespace Chat
         /// </summary>
         private bool _stopLoading = true;
         /// <summary>
-        /// 
+        /// This value is used to calculate the scroll position
         /// </summary>
         private int _timesDbLoaded = 1;
         /// <summary>
@@ -42,14 +33,10 @@ namespace Chat
         /// Messages of this user
         /// </summary>
         public ObservableCollection<ChatMessagesNotify> MessagesList { get; set; } = new ObservableCollection<ChatMessagesNotify>();
-        public ChatWindow()
+        public ChatWindow(string username)
         {
-            // TODO: REMOVE
-            {
-                Username = "dw";
-                SharedStuff.Database = new SQLiteAsyncConnection("database.db");
-            }
             InitializeComponent();
+            Username = username;
             WindowDialogHost.Identifier = "ChatDialogHost" + Username; // setup the DialogHost
             Title = Username; // just a temporary value. Get the name of user on Page_OnLoaded
         }
@@ -78,6 +65,42 @@ namespace Chat
             MainScrollViewer.ScrollToBottom(); // Go to the last of scroll view that is actually the first of it
             MainScrollViewer.UpdateLayout();
             _stopLoading = false;
+        }
+        private async void SendBtnClicked(object sender, RoutedEventArgs e)
+        {
+            // do not send the message if it's empty
+            if(string.IsNullOrWhiteSpace(MessageTextBox.Text))
+                return;
+            // encrypt the message with other user's key
+            string encryptedMessage;
+            {
+                string key = (await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == Username)
+                    .FirstAsync()).Key;
+                encryptedMessage = BouncyCastleHelper.AesGcmEncrypt(MessageTextBox.Text, key);
+            }
+            // create json
+            string json = JsonConvert.SerializeObject(new JsonTypes.SendMessage
+            {
+                Type = 0,
+                Payload = new JsonTypes.SendMessagePayload
+                {
+                    To = Username,
+                    Message = encryptedMessage
+                }
+            });
+            // send the json
+            SharedStuff.Websocket.Send(json); //TODO: create error handler?
+            // save it into database
+            await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages{
+                Date = DateTime.Now,
+                MyMessage = true,
+                Payload = MessageTextBox.Text,
+                Type = 0,
+                Username = Username
+            });
+            // add it to ui
+            AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
+            MessageTextBox.Text = "";
         }
         /// <summary>
         /// Adds a message to UI
@@ -133,6 +156,10 @@ namespace Chat
                 _stopLoading = false;
             }
             
+        }
+        private void ChatWindow_OnClosed(object sender, EventArgs e)
+        {
+            MainChatsWindow.OpenWindowsList.Remove(Username);
         }
     }
 }
