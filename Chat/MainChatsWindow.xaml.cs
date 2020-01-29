@@ -168,6 +168,13 @@ namespace Chat
                     message = msg.Type == 0
                         ? BouncyCastleHelper.AesGcmDecrypt(msg.Payload.Message, key)
                         : msg.Payload.Message;
+                    await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
+                    {
+                        Username = msg.Payload.From,
+                        Type = msg.Type,
+                        Date = msg.Payload.Date,
+                        Payload = message
+                    });
                 }
                 catch (Exception)
                 {
@@ -203,20 +210,12 @@ namespace Chat
                     });
                     inserted = true;
                 }
+                if (index == -1)
+                    return;
 
-                await SharedStuff.Database.RunInTransactionAsync(tran =>
-                {
-                    tran.Insert(new DatabaseHelper.Messages()
-                    {
-                        Username = msg.Payload.From,
-                        Type = msg.Type,
-                        Date = msg.Payload.Date,
-                        Payload = message
-                    });
-                    if (!open)
-                        tran.Execute("UPDATE Users SET UnreadMessages = ? WHERE Username = ?",
-                            MessagesList[index].NewMessages + 1, msg.Payload.From);
-                });
+                if (!open)
+                    await SharedStuff.Database.ExecuteAsync("UPDATE Users SET UnreadMessages = ? WHERE Username = ?",
+                        MessagesList[index].NewMessages + 1, msg.Payload.From);
                 if (!inserted)
                 {
                     Application.Current.Dispatcher.Invoke(delegate
