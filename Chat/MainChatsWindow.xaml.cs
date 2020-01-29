@@ -31,7 +31,7 @@ namespace Chat
         /// <summary>
         /// The list that controls the messages in main list
         /// </summary>
-        public ObservableCollection<MainMessagesNotify> MessagesList { get; set; } = new ObservableCollection<MainMessagesNotify>();
+        public static ObservableCollection<MainMessagesNotify> MessagesList { get; set; } = new ObservableCollection<MainMessagesNotify>();
         /// <summary>
         /// Saved data is loaded here
         /// </summary>
@@ -249,7 +249,7 @@ namespace Chat
         private async void AddChatButton_OnClick(object sender, RoutedEventArgs e)
         {
             var dialog = new AddChatDialog();
-            string username = "";
+            string username = "",name = "";
             byte delegateResult = 0; // 0 is running, 1 is done, 2 is canceled
             Exception error = null;
             await DialogHost.Show(dialog,"MainWindowDialogHost",async delegate(object sender1, DialogClosingEventArgs args)
@@ -298,6 +298,7 @@ namespace Chat
                                 Name = data.Name,
                                 Key = key,
                             });
+                        name = data.Name;
                     }
                     catch (Exception)
                     {
@@ -324,6 +325,18 @@ namespace Chat
                 };
                 await DialogHost.Show(errDialog,"MainWindowDialogHost");
                 return;
+            }
+            // check if messages list does not contain this user
+            if (MessagesList.All(x => x.Username != username))
+            {
+                MessagesList.Insert(0, new MainMessagesNotify
+                {
+                    FullDate = DateTime.Now,
+                    IsLastMessageForUser = false,
+                    Message = "",
+                    Name = name,
+                    Username = username
+                });
             }
             // open the chat page
             OpenWindowsList.Add(username, new ChatWindow(username));

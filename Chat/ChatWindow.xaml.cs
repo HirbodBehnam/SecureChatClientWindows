@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using Newtonsoft.Json;
@@ -97,6 +98,13 @@ namespace Chat
                 Payload = MessageTextBox.Text,
                 Type = 0,
                 Username = Username
+            });
+            // add to main window
+            Application.Current.Dispatcher.Invoke(delegate
+            {
+                var u = MainChatsWindow.MessagesList.First(x => x.Username == Username);
+                u.Message = MessageTextBox.Text;
+                u.IsLastMessageForUser = true;
             });
             // add it to ui
             AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
