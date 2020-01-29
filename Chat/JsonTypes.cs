@@ -86,6 +86,7 @@ namespace Chat
             /// <summary>
             /// X25519 public key in base64
             /// </summary>
+            [Newtonsoft.Json.JsonProperty("public_key")]
             public string PublicKey { get; set; }
         }
         /// <summary>

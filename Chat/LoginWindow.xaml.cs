@@ -42,7 +42,7 @@ namespace Chat
                 LoadingTextText = {Text = "Connecting to server..."} // set the text of the dialog
             };
             Exception error = null;
-            await DialogHost.Show(loadingDialog, delegate(object sender1, DialogOpenedEventArgs args) // show the dialog
+            await DialogHost.Show(loadingDialog,"LoginDialogHost", delegate(object sender1, DialogOpenedEventArgs args) // show the dialog
             {
                 string serverAddress = ServerUrlTxt.Text, username = UsernameTxt.Text, password = PasswordTxt.Password;
                 bool trustEveryThing = TrustSslCheckBox.IsChecked.HasValue && TrustSslCheckBox.IsChecked.Value;
@@ -140,7 +140,7 @@ namespace Chat
                     ErrorTitle = {Text = error.Message}, 
                     ErrorText = {Text = error.InnerException.Message} // Inner exception is never empty
                 };
-                await DialogHost.Show(errorDialog);
+                await DialogHost.Show(errorDialog,"LoginDialogHost");
             }
             else // login the user
             {

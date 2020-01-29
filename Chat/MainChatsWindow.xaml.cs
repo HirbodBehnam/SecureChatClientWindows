@@ -88,18 +88,17 @@ namespace Chat
                     MessagesList.Add(msg);
             }
             // connect to server and register the websocket
-            return;
             await Task.Run(() =>
             {
-                if (Properties.Settings.Default.TrustInvalidSSL)
-                    SharedStuff.Websocket.SslConfiguration.ServerCertificateValidationCallback =
-                        (a, certificate, chain, sslPolicyErrors) => true;
                 while (true)
                 {
                     try
                     {
                         SharedStuff.Websocket = new WebSocket("wss://" + Properties.Settings.Default.ServerAddress + "/chat/registerUpdater");
-                        //_ws.OnMessage += WS_OnMessage;
+                        SharedStuff.Websocket.OnMessage += WS_OnMessage;
+                        if (Properties.Settings.Default.TrustInvalidSSL)
+                            SharedStuff.Websocket.SslConfiguration.ServerCertificateValidationCallback =
+                                (a, certificate, chain, sslPolicyErrors) => true;
                         SharedStuff.Websocket.Connect();
                         SharedStuff.Websocket.Send(JsonConvert.SerializeObject(new JsonTypes.HelloMessage
                         {
@@ -227,11 +226,17 @@ namespace Chat
         {
             var dialog = new AddChatDialog();
             string username = "";
+            bool done = false;
             Exception error = null;
-            await DialogHost.Show(dialog,  async delegate(object sender1, DialogClosingEventArgs args)
+            await DialogHost.Show(dialog,"MainWindowDialogHost",async delegate(object sender1, DialogClosingEventArgs args)
             {
-                if (!(bool) args.Parameter) // check if the dialog is canceled
+                if (!(bool) args.Parameter)
+                {
+                    done = true;
+                    // check if the dialog is canceled
                     return;
+                }
+
                 username = dialog.IdTextBox.Text;
                 // check if the ID exists in database
                 var dbResult = await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == username)
@@ -251,6 +256,7 @@ namespace Chat
                     catch (Exception ex)
                     {
                         error = new Exception("Cannot connect to server",ex);
+                        done = true;
                         return;
                     }
                     // check if the username exists
@@ -260,20 +266,28 @@ namespace Chat
                         string key = Convert.ToBase64String(SharedStuff.Curve.calculateAgreement(
                             Convert.FromBase64String(_savedData.PrivateKey),
                             Convert.FromBase64String(data.PublicKey)));
-                        await SharedStuff.Database.InsertAsync(new DatabaseHelper.Users // save the key in database
-                        {
-                            Username = data.Username,
-                            Name = data.Name,
-                            Key = key,
-                        });
+                        await SharedStuff.Database.InsertAsync(
+                            new DatabaseHelper.Users // save the key in database
+                            {
+                                Username = data.Username,
+                                Name = data.Name,
+                                Key = key,
+                            });
                     }
                     catch (Exception)
                     {
                         var data = JsonConvert.DeserializeObject<JsonTypes.ServerStatus>(result);
-                        error = new Exception("Server returned an error",new Exception(data.Message));
+                        error = new Exception("Server returned an error", new Exception(data.Message));
+                    }
+                    finally
+                    {
+                        done = true;
                     }
                 }
             });
+            // wait until the results are gathered
+            while (!done)
+                await Task.Delay(50);
             if (error != null)
             {
                 var errDialog = new ErrorDialogSample
@@ -281,14 +295,11 @@ namespace Chat
                     ErrorTitle = {Text = error.Message},
                     ErrorText = {Text = error.InnerException.Message}
                 };
-                await DialogHost.Show(errDialog);
+                await DialogHost.Show(errDialog,"MainWindowDialogHost");
                 return;
             }
             // open the chat page
-            OpenWindowsList.Add(username, new ChatWindow(username)
-            {
-                Owner = this,
-            });
+            OpenWindowsList.Add(username, new ChatWindow(username));
             OpenWindowsList[username].Show();
         }
         private void MainChatsWindow_OnClosing(object sender, CancelEventArgs e)
@@ -305,11 +316,13 @@ namespace Chat
                 if(selectedChat == null)
                     return;
                 // open the chat window
-                OpenWindowsList.Add(selectedChat.Username, new ChatWindow(selectedChat.Username)
+                if (!OpenWindowsList.ContainsKey(selectedChat.Username))
                 {
-                    Owner = this,
-                });
-                OpenWindowsList[selectedChat.Username].Show();
+                    OpenWindowsList.Add(selectedChat.Username, new ChatWindow(selectedChat.Username));
+                    OpenWindowsList[selectedChat.Username].Show();
+                }
+                else
+                    OpenWindowsList[selectedChat.Username].Activate();
             }
         }
     }
