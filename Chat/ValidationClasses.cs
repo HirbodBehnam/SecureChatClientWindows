@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Controls;
 
 namespace Chat
@@ -43,7 +39,10 @@ namespace Chat
     {
         public override ValidationResult Validate(object value, CultureInfo cultureInfo)
         {
-            return Validation.UsernameValidation((value ?? "").ToString())
+            // Why I use null if the value is null?
+            // value is null when the dialog is fired at start. (and the value is empty)
+            // we don't want to show the error at fist, so I pass an hardcoded string
+            return Validation.UsernameValidation((value ?? "null").ToString())
                 ? ValidationResult.ValidResult
                 : new ValidationResult(false, "Invalid characters");
         }
