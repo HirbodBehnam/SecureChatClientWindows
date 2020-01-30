@@ -185,6 +185,8 @@ namespace Chat
             if (!_stopLoading && !_reachedEnd && Math.Abs(e.VerticalOffset) < 1) // load more messages
             {
                 _stopLoading = true;
+                // get last height
+                double lastHeight = MainScrollViewer.ScrollableHeight;
                 var messages = await SharedStuff.Database.QueryAsync<DatabaseHelper.Messages>
                     (DatabaseHelper.LastRowsQuery(_lastMessageIndex,100),Username);
                 _lastMessageIndex += 100;
@@ -204,9 +206,8 @@ namespace Chat
                         Type = message.Type
                     });
                 }
-                //TODO: FIND BETTER WAY
                 MainScrollViewer.UpdateLayout();
-                MainScrollViewer.ScrollToVerticalOffset(MainScrollViewer.ScrollableHeight / ++_timesDbLoaded);
+                MainScrollViewer.ScrollToVerticalOffset(MainScrollViewer.ScrollableHeight - lastHeight); // tricky part; calculate the delta of height adding and go to that position from top
                 MainScrollViewer.UpdateLayout();
                 _stopLoading = false;
             }
