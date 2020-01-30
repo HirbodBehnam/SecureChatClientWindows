@@ -70,28 +70,32 @@ namespace Chat
         }
         private async void SendBtnClicked(object sender, RoutedEventArgs e)
         {
-            string message = MessageTextBox.Text;
+            string message = MessageTextBox.Text.Trim();
             await Task.Run(() => SendMessage(message));
             // add it to ui
-            AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
+            AddMessage(true,message,DateTime.Now, 0);
             MessageTextBox.Text = "";
             MessageTextBox.Focus();
+            _stopLoading = true;
             MainScrollViewer.ScrollToBottom();
             MainScrollViewer.UpdateLayout();
+            _stopLoading = false;
         }
         private async void MessageTextBox_OnKeyDown(object sender, KeyEventArgs e)
         {
             if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
                 if (Keyboard.IsKeyDown(Key.Enter))
                 {
-                    string message = MessageTextBox.Text;
+                    string message = MessageTextBox.Text.Trim().TrimEnd( Environment.NewLine.ToCharArray());
                     await Task.Run(() => SendMessage(message));
                     // add it to ui
-                    AddMessage(true,MessageTextBox.Text,DateTime.Now, 0);
+                    AddMessage(true,message,DateTime.Now, 0);
                     MessageTextBox.Text = "";
                     MessageTextBox.Focus();
+                    _stopLoading = true;
                     MainScrollViewer.ScrollToBottom();
                     MainScrollViewer.UpdateLayout();
+                    _stopLoading = false;
                 }
         }
 
@@ -157,6 +161,7 @@ namespace Chat
             });
             if (!myMessage)
             {
+                _stopLoading = true;
                 // scroll to bottom if needed
                 MainScrollViewer.UpdateLayout();
                 if (MainScrollViewer.ScrollableHeight - MainScrollViewer.VerticalOffset < 30)
@@ -164,6 +169,7 @@ namespace Chat
                     MainScrollViewer.ScrollToBottom();
                     MainScrollViewer.UpdateLayout();
                 }
+                _stopLoading = false;
             }
         }
         /// <summary>
