@@ -98,7 +98,10 @@ namespace Chat
                     _stopLoading = false;
                 }
         }
-
+        /// <summary>
+        /// Sends the outgoing message
+        /// </summary>
+        /// <param name="message">The message string</param>
         public async void SendMessage(string message)
         {
             // do not send the message if it's empty
@@ -212,6 +215,13 @@ namespace Chat
         private void ChatWindow_OnClosed(object sender, EventArgs e)
         {
             MainChatsWindow.OpenWindowsList.Remove(Username);
+        }
+
+        private void ChatTextCopyClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item)
+                if(item.CommandParameter is string msg)
+                    Clipboard.SetText(msg);
         }
     }
 }

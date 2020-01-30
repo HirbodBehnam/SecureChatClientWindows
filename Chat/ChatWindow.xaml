@@ -27,6 +27,15 @@
                             <materialDesign:Card UniformCornerRadius="3" Padding="10" Background="#424242"
                                                  HorizontalAlignment="{Binding MessageAlignment}" Margin="0,5,0,5"
                                                  MaxWidth="300">
+                                <materialDesign:Card.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy" Click="ChatTextCopyClicked" CommandParameter="{Binding Path=Message,Mode=OneWay}">
+                                            <MenuItem.Icon>
+                                                <materialDesign:PackIcon Kind="ContentCopy" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </materialDesign:Card.ContextMenu>
                                 <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}" 
                                          Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
                                          Style="{x:Null}" Foreground="White" IsReadOnly="True"/>
