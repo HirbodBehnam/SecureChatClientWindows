@@ -68,18 +68,33 @@ namespace Chat
         private async void SendBtnClicked(object sender, RoutedEventArgs e)
         {
             string message = MessageTextBox.Text.Trim();
-            string id = Guid.NewGuid().ToString();
-            await Task.Run(() => SendMessage(message,id));
-            var msgUi = new ChatMessagesNotify
+            if (SharedStuff.Websocket.IsAlive)
             {
-                MyMessage = true,
-                Message = message,
-                FullDate = DateTime.Now,
-                Type = 0,
-                Sent = 1
-            };
-            AddMessage(msgUi); // add it to ui
-            SharedStuff.NotSentMessages.Add(id,msgUi); // add message to pending messages
+                string id = Guid.NewGuid().ToString();
+                await Task.Run(() => SendMessage(message, id));
+                var msgUi = new ChatMessagesNotify
+                {
+                    MyMessage = true,
+                    Message = message,
+                    FullDate = DateTime.Now,
+                    Type = 0,
+                    Sent = 1
+                };
+                AddMessage(msgUi); // add it to ui
+                SharedStuff.NotSentMessages.Add(id, msgUi); // add message to pending messages
+            }
+            else
+            {
+                var msgUi = new ChatMessagesNotify
+                {
+                    MyMessage = true,
+                    Message = message,
+                    FullDate = DateTime.Now,
+                    Type = 0,
+                    Sent = 2
+                };
+                AddMessage(msgUi);
+            }
             // finalizing UI
             MessageTextBox.Text = "";
             MessageTextBox.Focus();
@@ -94,18 +109,33 @@ namespace Chat
                 if (Keyboard.IsKeyDown(Key.Enter))
                 {
                     string message = MessageTextBox.Text.Trim().TrimEnd( Environment.NewLine.ToCharArray());
-                    string id = Guid.NewGuid().ToString();
-                    await Task.Run(() => SendMessage(message,id)); // send message over network
-                    var msgUi = new ChatMessagesNotify
+                    if (SharedStuff.Websocket.IsAlive)
                     {
-                        MyMessage = true,
-                        Message = message,
-                        FullDate = DateTime.Now,
-                        Type = 0,
-                        Sent = 1
-                    };
-                    AddMessage(msgUi); // add it to ui
-                    SharedStuff.NotSentMessages.Add(id,msgUi); // add message to pending messages
+                        string id = Guid.NewGuid().ToString();
+                        await Task.Run(() => SendMessage(message, id)); // send message over network
+                        var msgUi = new ChatMessagesNotify
+                        {
+                            MyMessage = true,
+                            Message = message,
+                            FullDate = DateTime.Now,
+                            Type = 0,
+                            Sent = 1
+                        };
+                        AddMessage(msgUi); // add it to ui
+                        SharedStuff.NotSentMessages.Add(id, msgUi); // add message to pending messages
+                    }
+                    else
+                    {
+                        var msgUi = new ChatMessagesNotify
+                        {
+                            MyMessage = true,
+                            Message = message,
+                            FullDate = DateTime.Now,
+                            Type = 0,
+                            Sent = 2
+                        };
+                        AddMessage(msgUi);
+                    }
                     // finalizing UI
                     MessageTextBox.Text = "";
                     MessageTextBox.Focus();
@@ -143,19 +173,17 @@ namespace Chat
                     Message = encryptedMessage
                 }
             });
-            // save this value in 
             // send the json
             SharedStuff.Websocket.SendAsync(json, ok =>
             {
-                // todo: what is this shit?
-            });
-            // save it into database
-            await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages{
-                Date = DateTime.Now,
-                MyMessage = true,
-                Payload = message,
-                Type = 0,
-                Username = Username
+                SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
+                {
+                    Date = DateTime.Now,
+                    MyMessage = true,
+                    Payload = message,
+                    Type = 0,
+                    Username = Username
+                }).Wait();
             });
             // add to main window
             Application.Current.Dispatcher.Invoke(delegate

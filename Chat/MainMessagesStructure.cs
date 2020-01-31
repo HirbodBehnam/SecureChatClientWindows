@@ -206,8 +206,8 @@ namespace Chat
                 if(value == _sent)
                     return;
                 _sent = value;
-                OnPropertyChanged("SentIconVisibility");
                 OnPropertyChanged("SentIconKind");
+                OnPropertyChanged("SentIconVisibility");
             }
         }
         /// <summary>
@@ -217,7 +217,7 @@ namespace Chat
         /// <summary>
         /// Get icon kind type of message status
         /// </summary>
-        public PackIconKind SentIconKind => _sent == 1 ? PackIconKind.ProgressClock : PackIconKind.ClockWarning;
+        public PackIconKind SentIconKind => _sent == 1 ? PackIconKind.ProgressClock : PackIconKind.Error;
 
         public event PropertyChangedEventHandler PropertyChanged;
 

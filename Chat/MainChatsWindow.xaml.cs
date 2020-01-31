@@ -123,13 +123,12 @@ namespace Chat
             try
             {
                 var status = JsonConvert.DeserializeObject<JsonTypes.MessageStatus>(e.Data);
-                if (status.Ok)
+                if (status.Id != null) // a real message status
                 {
-                    if (status.Id != null)
-                    {
-                        SharedStuff.NotSentMessages[status.Id].Sent = 0;
-                        SharedStuff.NotSentMessages.Remove(status.Id);
-                    }
+                    SharedStuff.NotSentMessages[status.Id].Sent = status.Ok ? (byte) 0 : (byte) 2;
+                    if(!status.Ok)
+                        Console.WriteLine("Error on message " + status.Id+ ": " + status.Message);
+                    SharedStuff.NotSentMessages.Remove(status.Id);
                     return;
                 }
 
