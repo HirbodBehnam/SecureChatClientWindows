@@ -1,4 +1,6 @@
-﻿using System.Collections.Specialized;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -18,6 +20,10 @@ namespace Chat
     /// </summary>
     internal static class SharedStuff
     {
+        /// <summary>
+        /// A dictionary that contains all messages that are not delivered yet, by they GUID
+        /// </summary>
+        public static readonly Dictionary<string,ChatMessagesNotify> NotSentMessages = new Dictionary<string, ChatMessagesNotify>();
         /// <summary>
         /// An http client to use it in from all of the application https://stackoverflow.com/a/4015346/4213397
         /// </summary>
@@ -63,7 +69,11 @@ namespace Chat
         /// <param name="nvc">Parameters</param>
         /// <returns>The url with parameters</returns>
         public static string CreateUrlWithQuery(string url, NameValueCollection nvc) => url + ToQueryString(nvc);
-
+        /// <summary>
+        /// A small function to get the user data of a user
+        /// </summary>
+        /// <param name="username">Username of the user</param>
+        /// <returns></returns>
         public static async Task<JsonTypes.UserDataStruct> GetUserData(string username)
         {
             NameValueCollection queryString = HttpUtility.ParseQueryString(string.Empty);

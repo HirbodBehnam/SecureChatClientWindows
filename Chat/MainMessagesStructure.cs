@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using MaterialDesignThemes.Wpf;
 
 namespace Chat
 {
@@ -128,7 +129,7 @@ namespace Chat
         private bool _myMessage;
         private string _message;
         private DateTime _date;
-        private byte _type;
+        private byte _type,_sent;
         /// <summary>
         /// True if the user sent this message; If it's an incoming message it's false
         /// </summary>
@@ -194,6 +195,30 @@ namespace Chat
         /// Card alignment of the messages according to the message sent
         /// </summary>
         public HorizontalAlignment MessageAlignment => _myMessage ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        /// <summary>
+        /// 0 -> Sent, 1 -> Sending, 2-> Failed
+        /// </summary>
+        public byte Sent
+        {
+            get => _sent;
+            set
+            {
+                if(value == _sent)
+                    return;
+                _sent = value;
+                OnPropertyChanged("SentIconVisibility");
+                OnPropertyChanged("SentIconKind");
+            }
+        }
+        /// <summary>
+        /// Gets if the sending icon must be visible or not
+        /// </summary>
+        public Visibility SentIconVisibility => _sent == 0 ? Visibility.Collapsed : Visibility.Visible;
+        /// <summary>
+        /// Get icon kind type of message status
+        /// </summary>
+        public PackIconKind SentIconKind => _sent == 1 ? PackIconKind.ProgressClock : PackIconKind.ClockWarning;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Dynamic;
 
 namespace Chat
 {
@@ -23,7 +22,13 @@ namespace Chat
         /// </summary>
         public class ServerStatus
         {
+            /// <summary>
+            /// Was the action successful?
+            /// </summary>
             public bool Ok { get; set; }
+            /// <summary>
+            /// If not why
+            /// </summary>
             public string Message { get; set; }
         }
         /// <summary>
@@ -99,6 +104,10 @@ namespace Chat
             /// </summary>
             public byte Type { get; set; }
             /// <summary>
+            /// <see cref="Guid"/> of the message. Randomly created
+            /// </summary>
+            public string Id { get; set; }
+            /// <summary>
             /// Payload of the message
             /// </summary>
             public SendMessagePayload Payload { get; set; }
@@ -114,6 +123,24 @@ namespace Chat
             public string To { get; set; }
             /// <summary>
             /// Token of the file, or encrypted message
+            /// </summary>
+            public string Message { get; set; }
+        }
+        /// <summary>
+        /// A json type that server sends when it wants to report status of a message
+        /// </summary>
+        public class MessageStatus
+        {
+            /// <summary>
+            /// Was sending message successful?
+            /// </summary>
+            public bool Ok { get; set; }
+            /// <summary>
+            /// What message?
+            /// </summary>
+            public string Id { get; set; }
+            /// <summary>
+            /// If not why
             /// </summary>
             public string Message { get; set; }
         }

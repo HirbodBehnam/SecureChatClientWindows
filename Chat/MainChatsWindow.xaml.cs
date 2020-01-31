@@ -122,9 +122,17 @@ namespace Chat
             // at first try to parse the message as Server status.
             try
             {
-                var status = JsonConvert.DeserializeObject<JsonTypes.ServerStatus>(e.Data);
+                var status = JsonConvert.DeserializeObject<JsonTypes.MessageStatus>(e.Data);
                 if (status.Ok)
+                {
+                    if (status.Id != null)
+                    {
+                        SharedStuff.NotSentMessages[status.Id].Sent = 0;
+                        SharedStuff.NotSentMessages.Remove(status.Id);
+                    }
                     return;
+                }
+
                 if (status.Message != null && !status.Ok)
                 {
                     // TODO: HANDLE THIS SHIT

@@ -41,7 +41,7 @@ namespace Chat
             /// <summary>
             /// ID of the row
             /// </summary>
-            [PrimaryKey, AutoIncrement]
+            [PrimaryKey, AutoIncrement, Indexed]
             public int Id { get; set; }
             /// <summary>
             /// The username of the 

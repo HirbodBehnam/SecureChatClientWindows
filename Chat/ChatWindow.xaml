@@ -36,9 +36,12 @@
                                         </MenuItem>
                                     </ContextMenu>
                                 </materialDesign:Card.ContextMenu>
-                                <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}" 
-                                         Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
-                                         Style="{x:Null}" Foreground="White" IsReadOnly="True"/>
+                                <DockPanel>
+                                    <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}"
+                                             Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
+                                             Style="{x:Null}" Foreground="White" IsReadOnly="True" />
+                                    <materialDesign:PackIcon Visibility="{Binding Path=SentIconVisibility,Mode=OneWay}" Kind="{Binding Path=SentIconKind,Mode=OneWay}"/>
+                                </DockPanel>
                             </materialDesign:Card>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

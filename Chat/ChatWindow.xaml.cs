@@ -24,10 +24,6 @@ namespace Chat
         /// </summary>
         private bool _stopLoading = true;
         /// <summary>
-        /// This value is used to calculate the scroll position
-        /// </summary>
-        private int _timesDbLoaded = 1;
-        /// <summary>
         /// The username of the user that the client is chatting with
         /// </summary>
         public string Username { get; set; }
@@ -60,7 +56,8 @@ namespace Chat
                     MyMessage = message.MyMessage,
                     Message = message.Payload,
                     FullDate = message.Date,
-                    Type = message.Type
+                    Type = message.Type,
+                    Sent = 0
                 });
             }
 
@@ -71,9 +68,19 @@ namespace Chat
         private async void SendBtnClicked(object sender, RoutedEventArgs e)
         {
             string message = MessageTextBox.Text.Trim();
-            await Task.Run(() => SendMessage(message));
-            // add it to ui
-            AddMessage(true,message,DateTime.Now, 0);
+            string id = Guid.NewGuid().ToString();
+            await Task.Run(() => SendMessage(message,id));
+            var msgUi = new ChatMessagesNotify
+            {
+                MyMessage = true,
+                Message = message,
+                FullDate = DateTime.Now,
+                Type = 0,
+                Sent = 1
+            };
+            AddMessage(msgUi); // add it to ui
+            SharedStuff.NotSentMessages.Add(id,msgUi); // add message to pending messages
+            // finalizing UI
             MessageTextBox.Text = "";
             MessageTextBox.Focus();
             _stopLoading = true;
@@ -87,9 +94,19 @@ namespace Chat
                 if (Keyboard.IsKeyDown(Key.Enter))
                 {
                     string message = MessageTextBox.Text.Trim().TrimEnd( Environment.NewLine.ToCharArray());
-                    await Task.Run(() => SendMessage(message));
-                    // add it to ui
-                    AddMessage(true,message,DateTime.Now, 0);
+                    string id = Guid.NewGuid().ToString();
+                    await Task.Run(() => SendMessage(message,id)); // send message over network
+                    var msgUi = new ChatMessagesNotify
+                    {
+                        MyMessage = true,
+                        Message = message,
+                        FullDate = DateTime.Now,
+                        Type = 0,
+                        Sent = 1
+                    };
+                    AddMessage(msgUi); // add it to ui
+                    SharedStuff.NotSentMessages.Add(id,msgUi); // add message to pending messages
+                    // finalizing UI
                     MessageTextBox.Text = "";
                     MessageTextBox.Focus();
                     _stopLoading = true;
@@ -102,7 +119,8 @@ namespace Chat
         /// Sends the outgoing message
         /// </summary>
         /// <param name="message">The message string</param>
-        public async void SendMessage(string message)
+        /// <param name="id">The message string</param>
+        public async void SendMessage(string message,string id)
         {
             // do not send the message if it's empty
             if(string.IsNullOrWhiteSpace(message))
@@ -118,14 +136,19 @@ namespace Chat
             string json = JsonConvert.SerializeObject(new JsonTypes.SendMessage
             {
                 Type = 0,
+                Id = id,
                 Payload = new JsonTypes.SendMessagePayload
                 {
                     To = Username,
                     Message = encryptedMessage
                 }
             });
+            // save this value in 
             // send the json
-            SharedStuff.Websocket.Send(json); //TODO: create error handler?
+            SharedStuff.Websocket.SendAsync(json, ok =>
+            {
+                // todo: what is this shit?
+            });
             // save it into database
             await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages{
                 Date = DateTime.Now,
@@ -141,6 +164,26 @@ namespace Chat
                 u.Message = message;
                 u.IsLastMessageForUser = true;
             });
+        }
+        public void AddMessage(ChatMessagesNotify message)
+        {
+            _lastMessageIndex++;
+            Application.Current.Dispatcher.Invoke(delegate
+            {
+                MessagesList.Add(message);
+            });
+            if (!message.MyMessage)
+            {
+                _stopLoading = true;
+                // scroll to bottom if needed
+                MainScrollViewer.UpdateLayout();
+                if (MainScrollViewer.ScrollableHeight - MainScrollViewer.VerticalOffset < 30)
+                {
+                    MainScrollViewer.ScrollToBottom();
+                    MainScrollViewer.UpdateLayout();
+                }
+                _stopLoading = false;
+            }
         }
         /// <summary>
         /// Adds a message to UI
@@ -159,7 +202,8 @@ namespace Chat
                     MyMessage = myMessage,
                     Message = data,
                     FullDate = date,
-                    Type = type
+                    Type = type,
+                    Sent = myMessage ? (byte)1 : (byte)0
                 });
             });
             if (!myMessage)
