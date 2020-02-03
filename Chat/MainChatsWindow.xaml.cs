@@ -69,11 +69,16 @@ namespace Chat
                     if (lastMsgQ.Count > 0)
                     {
                         var lastMsg = lastMsgQ[0];
+                        string msg = lastMsg.Type == 0 ? lastMsg.Payload : 
+                            System.IO.Path.GetFileName(
+                                (await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                                    .Where(file => file.Token == lastMsg.Payload).FirstAsync()).Location);
                         msgs[i] = new MainMessagesNotify
                         {
+                            Type = (MessageType)lastMsg.Type,
                             Username = users[i].Username,
                             IsLastMessageForUser = lastMsg.MyMessage,
-                            Message = lastMsg.Payload,
+                            Message = msg,
                             Name = users[i].Name,
                             FullDate = lastMsg.Date,
                             NewMessages = users[i].UnreadMessages
@@ -125,10 +130,19 @@ namespace Chat
                 var status = JsonConvert.DeserializeObject<JsonTypes.MessageStatus>(e.Data);
                 if (status.Id != null) // a real message status
                 {
-                    SharedStuff.NotSentMessages[status.Id].Sent = status.Ok ? (byte) 0 : (byte) 2;
                     if(!status.Ok)
-                        Console.WriteLine("Error on message " + status.Id+ ": " + status.Message);
-                    SharedStuff.NotSentMessages.Remove(status.Id);
+                        Console.WriteLine("Error on message " + status.Id + ": " + status.Message);
+                    if (status.Message != "sent") // this is a file token update
+                    {
+                        SharedStuff.PendingMessages[status.Id].Token = status.Message;
+                        // now start upload
+                        SharedStuff.UploadFile(status.Id);
+                    }
+                    else
+                    {
+                        SharedStuff.PendingMessages[status.Id].Sent = status.Ok ? (byte) 0 : (byte) 2;
+                        SharedStuff.PendingMessages.Remove(status.Id);
+                    }
                     return;
                 }
 
@@ -168,24 +182,30 @@ namespace Chat
                 else // get the key from database; There is only one row because Username is unique
                     key = keyList[0].Key;
 
-                // decrypt the message or assign the file token
-                string message = "";
-                try
+                string toShowOnMainMenu = "";
+                switch (msg.Type)
                 {
-                    message = msg.Type == 0
-                        ? BouncyCastleHelper.AesGcmDecrypt(msg.Payload.Message, key)
-                        : msg.Payload.Message;
-                    await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
-                    {
-                        Username = msg.Payload.From,
-                        Type = msg.Type,
-                        Date = msg.Payload.Date,
-                        Payload = message
-                    });
-                }
-                catch (Exception)
-                {
-                    // TODO: RE-REQUEST public key
+                    case 0: // Text message
+                        // decrypt the message or assign the file token
+                        try
+                        {
+                            string message = BouncyCastleHelper.AesGcmDecrypt(msg.Payload.Message, key);
+                            await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
+                            {
+                                Username = msg.Payload.From,
+                                Type = msg.Type,
+                                Date = msg.Payload.Date,
+                                Payload = message
+                            });
+                            toShowOnMainMenu = message;
+                        }
+                        catch (Exception)
+                        {
+                            // TODO: RE-REQUEST public key
+                        }
+                        break;
+                    case 1: // File message
+                        break;
                 }
 
                 // save the value
@@ -208,7 +228,7 @@ namespace Chat
                         MessagesList.Insert(0,new MainMessagesNotify
                         {
                             FullDate = msg.Payload.Date,
-                            Message = message,
+                            Message = toShowOnMainMenu,
                             IsLastMessageForUser = false,
                             Name = name,
                             NewMessages = 1,
@@ -220,7 +240,7 @@ namespace Chat
                 if (index == -1)
                     return;
 
-                if (!open)
+                if (!open) // increase unread messages
                     await SharedStuff.Database.ExecuteAsync("UPDATE Users SET UnreadMessages = ? WHERE Username = ?",
                         MessagesList[index].NewMessages + 1, msg.Payload.From);
                 if (!inserted)
@@ -230,7 +250,7 @@ namespace Chat
                         // Show the user the update
                         MessagesList.Move(index, 0);
                         MessagesList[0].FullDate = msg.Payload.Date;
-                        MessagesList[0].Message = message;
+                        MessagesList[0].Message = toShowOnMainMenu;
                         MessagesList[0].IsLastMessageForUser = false;
                         if (!open)
                             MessagesList[0].NewMessages++;
@@ -239,7 +259,7 @@ namespace Chat
 
                 // update the open windows
                 if (open)
-                    OpenWindowsList[msg.Payload.From].AddMessage(false, message, msg.Payload.Date, 0);
+                    OpenWindowsList[msg.Payload.From].AddMessage(false, toShowOnMainMenu, msg.Payload.Date, 0);
             }
             catch (Exception ex)
             {

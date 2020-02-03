@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Encodings;
@@ -64,6 +62,16 @@ namespace Chat
             }
         }
         /// <summary>
+        /// Generate a 96 bit nonce for Aes encryption
+        /// </summary>
+        /// <returns>nonce</returns>
+        public static byte[] AesGenerateNonce()
+        {
+            byte[] nonce = new byte[12];
+            SharedStuff.SecureRandom.GetBytes(nonce);
+            return nonce;
+        }
+        /// <summary>
         /// Decrypt a message with AES-GCM cipher; The nonce is first 12 bytes of payload
         /// </summary>
         /// <param name="payload">The message to decrypt</param>
@@ -121,9 +129,7 @@ namespace Chat
         /// <returns>Encrypted bytes</returns>
         public static byte[] AesGcmEncrypt(byte[] payload, byte[] key)
         {
-            byte[] nonce = new byte[12];
-            SharedStuff.SecureRandom.GetBytes(nonce);
-            return AesGcmEncrypt(payload, key, nonce);
+            return AesGcmEncrypt(payload, key, AesGenerateNonce());
         }
         /// <summary>
         /// Encrypt a byte array with AES-GCM; Nonce is created randomly
@@ -140,6 +146,84 @@ namespace Chat
             int len = cipher.ProcessBytes(payload, 0, payload.Length, cipherBytes, 0);
             cipher.DoFinal(cipherBytes, len);
             return nonce.Concat(cipherBytes).ToArray();
+        }
+        /// <summary>
+        /// Encrypts a file with AesGcm
+        /// </summary>
+        /// <param name="input">The input file to encrypt</param>
+        /// <param name="output">Output file to write the encrypted file</param>
+        /// <param name="key">The key to encrypt data with it</param>
+        /// <remarks>
+        /// This function breaks file into 1MB chunks, and encrypts each one separately
+        /// After each full chunk the length of it becomes 1024 * 1024 + 28 (28 = 12 + 16) (nonce + hmac)
+        /// This means that the file size increases about 0.002%
+        /// Obviously the last block's size is not 1024 * 1024 + 28
+        /// First 4 bytes of file is the buffer size
+        /// </remarks>
+        public static void AesGcmEncrypt(FileInfo input, FileInfo output, byte[] key)
+        {
+            AesGcmEncrypt(input, output, key, 1024 * 1024);
+        }
+        /// <summary>
+        /// Encrypts a file with AesGcm
+        /// </summary>
+        /// <param name="input">The input file to encrypt</param>
+        /// <param name="output">Output file to write the encrypted file</param>
+        /// <param name="key">The key to encrypt data with it</param>
+        /// <param name="bufferSize">The buffer size that the input is read and encrypted</param>
+        public static void AesGcmEncrypt(FileInfo input, FileInfo output, byte[] key, int bufferSize)
+        {
+            using (Stream reader = input.OpenRead())
+            {
+                using (Stream writer = output.OpenWrite())
+                {
+                    // at first write the buffer size to first of file
+                    writer.Write(SharedStuff.IntToBytes(bufferSize),0,4); // int is 4 bytes
+                    // now read the input file; "bufferSize" bytes at a time
+                    int readCount;
+                    byte[] readBytes = new byte[bufferSize];
+                    while ((readCount = reader.Read(readBytes,0,readBytes.Length)) > 0)
+                    {
+                        if(readBytes.Length > readCount)
+                            Array.Resize(ref readBytes,readCount); // this is the last chunk of file; Do not encrypt all of the data in readBytes
+                        byte[] crypted = AesGcmEncrypt(readBytes, key);
+                        writer.Write(crypted,0,crypted.Length);
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// Reads and decrypts a file THAT IS ENCRYPTED WITH <see cref="AesGcmEncrypt(FileInfo,FileInfo,byte[],int)"/>
+        /// </summary>
+        /// <param name="input">The input file to decrypt it</param>
+        /// <param name="output">The output file to write the decrypted data into it</param>
+        /// <param name="key">Encryption key</param>
+        public static void AesGcmDecrypt(FileInfo input, FileInfo output, byte[] key)
+        {
+            using (Stream reader = input.OpenRead())
+            {
+                using (Stream writer = output.OpenWrite())
+                {
+                    int bufferSize;
+                    // at first read the crypt buffer
+                    {
+                        byte[] buffer = new byte[4];
+                        reader.Read(buffer, 0, buffer.Length);
+                        bufferSize = SharedStuff.BytesToInt(buffer);
+                        bufferSize += 12 + 16; // mac + nonce
+                    }
+                    // now read the input file; "bufferSize" bytes at a time
+                    int readCount;
+                    byte[] readBytes = new byte[bufferSize];
+                    while ((readCount = reader.Read(readBytes,0,readBytes.Length)) > 0)
+                    {
+                        if(readBytes.Length > readCount)
+                            Array.Resize(ref readBytes,readCount); // this is the last chunk of file; Do not encrypt all of the data in readBytes
+                        byte[] decrypted = AesGcmDecrypt(readBytes, key);
+                        writer.Write(decrypted,0,decrypted.Length);
+                    }
+                }
+            }
         }
     }
 }

@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using System.Windows.Media;
 using MaterialDesignThemes.Wpf;
 
 namespace Chat
@@ -40,7 +39,10 @@ namespace Chat
             {
                 if (_message == value)
                     return;
-                _message = value.Replace(System.Environment.NewLine, ""); //remove new lines
+                if (Type == MessageType.Text)
+                    _message = value.Replace(Environment.NewLine, ""); //remove new lines
+                else
+                    _message = "File: " + value;
                 OnPropertyChanged();
             }
         }
@@ -113,6 +115,10 @@ namespace Chat
         /// The username of the user; This is used for selections
         /// </summary>
         public string Username { get; set; }
+        /// <summary>
+        /// File type
+        /// </summary>
+        public MessageType Type { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -127,9 +133,10 @@ namespace Chat
     public class ChatMessagesNotify : INotifyPropertyChanged
     {
         private bool _myMessage;
-        private string _message;
+        private string _message,_token;
         private DateTime _date;
         private byte _type,_sent;
+        private double _progress;
         /// <summary>
         /// True if the user sent this message; If it's an incoming message it's false
         /// </summary>
@@ -190,7 +197,18 @@ namespace Chat
                 OnPropertyChanged();
             }
         }
-//        public Brush CardColor => new SolidColorBrush(_myMessage ? Color.FromRgb(255,209,128) : Color.FromRgb(66,66,66));
+        /// <summary>
+        /// Gets if the text message type components must be visible or not
+        /// </summary>
+        public Visibility IsTextType => _type == 0 ? Visibility.Visible : Visibility.Collapsed;
+        /// <summary>
+        /// Gets if the file message type components must be visible or not
+        /// </summary>
+        public Visibility IsFileType => _type == 1 ? Visibility.Visible : Visibility.Collapsed;
+        /// <summary>
+        /// Sets the visibility of the progress bar for file upload and download
+        /// </summary>
+        public Visibility FileProgressBarEnabled => _progress < 100 ? Visibility.Visible : Visibility.Collapsed;
         /// <summary>
         /// Card alignment of the messages according to the message sent
         /// </summary>
@@ -219,6 +237,41 @@ namespace Chat
         /// </summary>
         public PackIconKind SentIconKind => _sent == 1 ? PackIconKind.ProgressClock : PackIconKind.Error;
 
+        /// <summary>
+        /// Token of the file if <see cref="Type"/> is 0
+        /// </summary>
+        public string Token
+        {
+            get => _token;
+            set
+            {
+                if (value == _token)
+                    return;
+                _token = value;
+                OnPropertyChanged();
+            }
+        }
+        /// <summary>
+        /// The file location on computer
+        /// </summary>
+        public string FilePath { get; set; }
+        /// <summary>
+        /// What should the progress bar show
+        /// </summary>
+        public double Progress
+        {
+            get => _progress;
+            set
+            {
+                _progress = value;
+                OnPropertyChanged();
+                OnPropertyChanged("FileProgressBarEnabled");
+            }
+        }
+        /// <summary>
+        /// The username of the who this message is from (Only used in file type)
+        /// </summary>
+        public string With { get; set; }
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)

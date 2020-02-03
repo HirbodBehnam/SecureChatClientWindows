@@ -52,7 +52,7 @@ namespace Chat
         public class Updates
         {
             /// <summary>
-            /// 0 -&gt; Text message / 1 -&gt; File / 2 -&gt; Handshake
+            /// 0 -&gt; Text message / 1 -&gt; File / 2 -&gt; File Token
             /// </summary>
             public byte Type { get; set; }
             /// <summary>
@@ -100,7 +100,7 @@ namespace Chat
         public class SendMessage
         {
             /// <summary>
-            /// 0 -&gt; Text message / 1 -&gt; File / 2 -&gt; Handshake
+            /// 0 -&gt; Text message / 1 -&gt; File / 2 -&gt; File Request
             /// </summary>
             public byte Type { get; set; }
             /// <summary>

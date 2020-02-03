@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Shapes;
+using MaterialDesignThemes.Wpf;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 namespace Chat
@@ -51,13 +54,19 @@ namespace Chat
                 _reachedEnd = true;
             foreach (var message in messages)
             {
+                string msg = message.Type == 0 ? message.Payload : 
+                    System.IO.Path.GetFileName(
+                        (await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                            .Where(file => file.Token == message.Payload).FirstAsync()).Location);
                 MessagesList.Insert(0,new ChatMessagesNotify
                 {
                     MyMessage = message.MyMessage,
-                    Message = message.Payload,
+                    Message = msg,
                     FullDate = message.Date,
                     Type = message.Type,
-                    Sent = 0
+                    Sent = 0,
+                    Token = message.Payload,
+                    Progress = 101
                 });
             }
 
@@ -68,40 +77,83 @@ namespace Chat
         private async void SendBtnClicked(object sender, RoutedEventArgs e)
         {
             string message = MessageTextBox.Text.Trim();
-            if (SharedStuff.Websocket.IsAlive)
+            // initialize file send
+            if(string.IsNullOrWhiteSpace(message))
             {
-                string id = Guid.NewGuid().ToString();
-                await Task.Run(() => SendMessage(message, id));
-                var msgUi = new ChatMessagesNotify
+                OpenFileDialog ofd = new OpenFileDialog {Title = "Send File"};
+                bool? result = ofd.ShowDialog();
+                if (result.HasValue && result.Value)
                 {
-                    MyMessage = true,
-                    Message = message,
-                    FullDate = DateTime.Now,
-                    Type = 0,
-                    Sent = 1
-                };
-                AddMessage(msgUi); // add it to ui
-                SharedStuff.NotSentMessages.Add(id, msgUi); // add message to pending messages
+                    string key = (await SharedStuff.Database.Table<DatabaseHelper.Users>().Where(user => user.Username == Username)
+                        .FirstAsync()).Key;
+                    // at first request a token
+                    string id = Guid.NewGuid().ToString();
+                    var msgUi = new ChatMessagesNotify
+                    {
+                        MyMessage = true,
+                        Message = System.IO.Path.GetFileName(ofd.FileName),
+                        FullDate = DateTime.Now,
+                        Type = 1,
+                        Sent = 1,
+                        FilePath = ofd.FileName,
+                        With = Username
+                    };
+                    SharedStuff.PendingMessages.Add(id,msgUi);
+                    // create json
+                    string json = JsonConvert.SerializeObject(new JsonTypes.SendMessage
+                    {
+                        Type = 2,
+                        Id = id,
+                        Payload = new JsonTypes.SendMessagePayload
+                        {
+                            To = Username,
+                            Message = System.IO.Path.GetFileName(ofd.FileName)
+                        }
+                    });
+                    SharedStuff.Websocket.SendAsync(json,null);
+                    AddMessage(msgUi);
+                }
             }
             else
             {
-                var msgUi = new ChatMessagesNotify
+                if (SharedStuff.Websocket.IsAlive)
                 {
-                    MyMessage = true,
-                    Message = message,
-                    FullDate = DateTime.Now,
-                    Type = 0,
-                    Sent = 2
-                };
-                AddMessage(msgUi);
+                    string id = Guid.NewGuid().ToString();
+                    await Task.Run(() => SendMessage(message, id));
+                    var msgUi = new ChatMessagesNotify
+                    {
+                        MyMessage = true,
+                        Message = message,
+                        FullDate = DateTime.Now,
+                        Type = 0,
+                        Sent = 1
+                    };
+                    AddMessage(msgUi); // add it to ui
+                    SharedStuff.PendingMessages.Add(id, msgUi); // add message to pending messages
+                }
+                else
+                {
+                    var msgUi = new ChatMessagesNotify
+                    {
+                        MyMessage = true,
+                        Message = message,
+                        FullDate = DateTime.Now,
+                        Type = 0,
+                        Sent = 2
+                    };
+                    AddMessage(msgUi);
+                }
+
+                // finalizing UI
+                MessageTextBox.Text = "";
+                MessageTextBox.Focus();
+                _stopLoading = true;
+                MainScrollViewer.ScrollToBottom();
+                MainScrollViewer.UpdateLayout();
+                _stopLoading = false;
+                SendButtonIcon.Kind = PackIconKind.Attachment;
+                SendButton.ToolTip = "Send File";
             }
-            // finalizing UI
-            MessageTextBox.Text = "";
-            MessageTextBox.Focus();
-            _stopLoading = true;
-            MainScrollViewer.ScrollToBottom();
-            MainScrollViewer.UpdateLayout();
-            _stopLoading = false;
         }
         private async void MessageTextBox_OnKeyDown(object sender, KeyEventArgs e)
         {
@@ -109,6 +161,9 @@ namespace Chat
                 if (Keyboard.IsKeyDown(Key.Enter))
                 {
                     string message = MessageTextBox.Text.Trim().TrimEnd( Environment.NewLine.ToCharArray());
+                    // do not send the message if it's empty
+                    if(string.IsNullOrWhiteSpace(message))
+                        return;
                     if (SharedStuff.Websocket.IsAlive)
                     {
                         string id = Guid.NewGuid().ToString();
@@ -122,7 +177,7 @@ namespace Chat
                             Sent = 1
                         };
                         AddMessage(msgUi); // add it to ui
-                        SharedStuff.NotSentMessages.Add(id, msgUi); // add message to pending messages
+                        SharedStuff.PendingMessages.Add(id, msgUi); // add message to pending messages
                     }
                     else
                     {
@@ -143,7 +198,19 @@ namespace Chat
                     MainScrollViewer.ScrollToBottom();
                     MainScrollViewer.UpdateLayout();
                     _stopLoading = false;
+                    SendButtonIcon.Kind = PackIconKind.Attachment;
+                    SendButton.ToolTip = "Send File";
                 }
+            if (string.IsNullOrWhiteSpace(MessageTextBox.Text)) // show attachment icon
+            {
+                SendButtonIcon.Kind = PackIconKind.Attachment;
+                SendButton.ToolTip = "Send File";
+            }
+            else
+            {
+                SendButtonIcon.Kind = PackIconKind.Send;
+                SendButton.ToolTip = "Send Message";
+            }
         }
         /// <summary>
         /// Sends the outgoing message
@@ -152,9 +219,6 @@ namespace Chat
         /// <param name="id">The message string</param>
         public async void SendMessage(string message,string id)
         {
-            // do not send the message if it's empty
-            if(string.IsNullOrWhiteSpace(message))
-                return;
             // encrypt the message with other user's key
             string encryptedMessage;
             {
@@ -193,13 +257,14 @@ namespace Chat
                 u.IsLastMessageForUser = true;
             });
         }
+        /// <summary>
+        /// Add message to UI
+        /// </summary>
+        /// <param name="message">The message to add</param>
         public void AddMessage(ChatMessagesNotify message)
         {
-            _lastMessageIndex++;
-            Application.Current.Dispatcher.Invoke(delegate
-            {
-                MessagesList.Add(message);
-            });
+            _lastMessageIndex++; //TODO: Will this make some problems when the message is not sent?
+            Application.Current.Dispatcher.Invoke(() => MessagesList.Add(message));
             if (!message.MyMessage)
             {
                 _stopLoading = true;
@@ -284,6 +349,16 @@ namespace Chat
                 _stopLoading = false;
             }
             
+        }
+        private async void OpenFileClicked(object sender, RoutedEventArgs e)
+        {
+            if(sender is Button btn)
+                if (btn.CommandParameter is string token)
+                {
+                    //TODO: Check if the file exists
+                    var f = await SharedStuff.Database.Table<DatabaseHelper.Files>().Where(file => file.Token == token).FirstAsync();
+                    System.Diagnostics.Process.Start(f.Location);
+                }
         }
         private void ChatWindow_OnClosed(object sender, EventArgs e)
         {

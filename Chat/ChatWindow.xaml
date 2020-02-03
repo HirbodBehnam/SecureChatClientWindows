@@ -37,9 +37,27 @@
                                     </ContextMenu>
                                 </materialDesign:Card.ContextMenu>
                                 <DockPanel>
-                                    <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}"
-                                             Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
-                                             Style="{x:Null}" Foreground="White" IsReadOnly="True" />
+                                    <!-- Text message data type -->
+                                    <Grid Visibility="{Binding Mode=OneWay,Path=IsTextType}">
+                                        <TextBox Text="{Binding Path=Message,Mode=OneWay}" ToolTip="{Binding Date}"
+                                                 Background="Transparent" TextWrapping="Wrap" BorderThickness="0"
+                                                 Style="{x:Null}" Foreground="White" IsReadOnly="True"/>
+                                    </Grid>
+                                    <!-- File message data type -->
+                                    <StackPanel Visibility="{Binding Mode=OneWay,Path=IsFileType}">
+                                        <DockPanel>
+                                            <Button
+                                                Click="OpenFileClicked" CommandParameter="{Binding Path=Token,Mode=OneWay}"
+                                                Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
+                                                ToolTip="Open File"
+                                                Margin="2.5,2.5,5,2.5">
+                                                <materialDesign:PackIcon Kind="File" Height="24" Width="24" />
+                                            </Button>
+                                            <TextBlock Text="{Binding Path=Message,Mode=OneWay}" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                        <ProgressBar Margin="5" Value="{Binding Progress}" Style="{x:Null}" ToolTip="{Binding Progress}"
+                                                     Visibility="{Binding FileProgressBarEnabled}"/>
+                                    </StackPanel>
                                     <materialDesign:PackIcon Visibility="{Binding Path=SentIconVisibility,Mode=OneWay}" Kind="{Binding Path=SentIconKind,Mode=OneWay}"/>
                                 </DockPanel>
                             </materialDesign:Card>
@@ -47,14 +65,14 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <TextBox materialDesign:HintAssist.Hint="Message" Margin="0,0,75,0" VerticalAlignment="Bottom" 
+            <TextBox materialDesign:HintAssist.Hint="Message" Margin="0,0,75,0" VerticalAlignment="Bottom"
                      Height="75" x:Name="MessageTextBox" AcceptsReturn="True" TextWrapping="Wrap" KeyDown="MessageTextBox_OnKeyDown"
                      Style="{StaticResource MaterialDesignFilledTextFieldTextBox}" MaxLength="4096"/>
             <Button
                 Style="{StaticResource MaterialDesignFloatingActionLightButton}" HorizontalAlignment="Right"
-                ToolTip="Send" VerticalAlignment="Bottom"
+                ToolTip="Send File" VerticalAlignment="Bottom" x:Name="SendButton"
                 Margin="0,0,10,10" Click="SendBtnClicked">
-                <materialDesign:PackIcon Kind="Send" Height="24" Width="24" />
+                <materialDesign:PackIcon x:Name="SendButtonIcon" Kind="Attachment" Height="24" Width="24" />
             </Button>
         </Grid>
     </materialDesign:DialogHost>
