@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -102,13 +103,10 @@ namespace Chat
         /// <returns>Decrypted message</returns>
         public static byte[] AesGcmDecrypt(byte[] payload, byte[] key,byte[] nonce)
         {
-            var cipher = new GcmBlockCipher(new AesEngine());
-            cipher.Init(false,new AeadParameters(new KeyParameter(key), 128, nonce));
-            // https://github.com/SidShetye/BouncyBench/blob/master/BouncyBench/Ciphers/AesGcm.cs#L209
-            var clearBytes = new byte[cipher.GetOutputSize(payload.Length)];
-            int len = cipher.ProcessBytes(payload, 0, payload.Length, clearBytes, 0);
-            cipher.DoFinal(clearBytes, len);
-            return clearBytes;
+            byte[] tag = new byte[16];
+            Buffer.BlockCopy(payload,payload.Length - 16,tag,0,16);
+            Array.Resize(ref payload,payload.Length - 16); // get the real payload without tag
+            return AESGCM.GcmDecrypt(payload, key, nonce, tag);
         }
         /// <summary>
         /// Encrypt a string with AES-GCM; Nonce is created randomly
@@ -140,12 +138,9 @@ namespace Chat
         /// <returns>Encrypted bytes</returns>
         public static byte[] AesGcmEncrypt(byte[] payload, byte[] key,byte[] nonce)
         {
-            var cipher = new GcmBlockCipher(new AesEngine());
-            cipher.Init(true,new AeadParameters(new KeyParameter(key), 128, nonce));
-            var cipherBytes = new byte[cipher.GetOutputSize(payload.Length)];
-            int len = cipher.ProcessBytes(payload, 0, payload.Length, cipherBytes, 0);
-            cipher.DoFinal(cipherBytes, len);
-            return nonce.Concat(cipherBytes).ToArray();
+            byte[] tag = new byte[16];
+            byte[] encrypted = AESGCM.GcmEncrypt(payload,key,nonce,tag);
+            return encrypted.Concat(tag).ToArray();
         }
         /// <summary>
         /// Encrypts a file with AesGcm
@@ -210,7 +205,7 @@ namespace Chat
                         byte[] buffer = new byte[4];
                         reader.Read(buffer, 0, buffer.Length);
                         bufferSize = SharedStuff.BytesToInt(buffer);
-                        bufferSize += 12 + 16; // mac + nonce
+                        bufferSize += 12 + 16; // hmac + nonce
                     }
                     // now read the input file; "bufferSize" bytes at a time
                     int readCount;
