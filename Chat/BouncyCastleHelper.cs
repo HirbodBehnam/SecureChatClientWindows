@@ -140,7 +140,7 @@ namespace Chat
         {
             byte[] tag = new byte[16];
             byte[] encrypted = AESGCM.GcmEncrypt(payload,key,nonce,tag);
-            return encrypted.Concat(tag).ToArray();
+            return  nonce.Concat(encrypted.Concat(tag)).ToArray();
         }
         /// <summary>
         /// Encrypts a file with AesGcm
