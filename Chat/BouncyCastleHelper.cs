@@ -172,6 +172,15 @@ namespace Chat
             {
                 // at first write the buffer size to first of file
                 writer.Write(SharedStuff.IntToBytes(bufferSize), 0, 4); // int is 4 bytes
+                // generate a key for encryption
+                byte[] fileKey = new byte[32];
+                SharedStuff.SecureRandom.GetBytes(fileKey);
+                SharedStuff.SecureRandom.GetBytes(nonce);
+                {
+                    byte[] keyToWrite = AesGcmEncrypt(fileKey, key, nonce);
+                    writer.Write(keyToWrite,0,keyToWrite.Length);
+                    Array.Clear(keyToWrite,0,keyToWrite.Length);
+                }
                 // now read the input file; "bufferSize" bytes at a time
                 int readCount;
                 byte[] readBytes = new byte[bufferSize];
@@ -182,13 +191,12 @@ namespace Chat
                             readCount); // this is the last chunk of file; Do not encrypt all of the data in readBytes
                     //byte[] crypted = AesGcmEncrypt(readBytes, key); -> Do not use this because Concat takes a lot of time
                     SharedStuff.SecureRandom.GetBytes(nonce);
-                    byte[] encrypted = AESGCM.GcmEncrypt(readBytes, key, nonce, tag);
+                    byte[] encrypted = AESGCM.GcmEncrypt(readBytes, fileKey, nonce, tag);
                     writer.Write(nonce, 0, 12);
                     writer.Write(encrypted, 0, encrypted.Length);
                     writer.Write(tag, 0, 16);
                 }
             }
-            
         }
         /// <summary>
         /// Reads and decrypts a file THAT IS ENCRYPTED WITH <see cref="AesGcmEncrypt(FileInfo,FileInfo,byte[],int)"/>
@@ -202,12 +210,19 @@ namespace Chat
             using (Stream writer = output.OpenWrite())
             {
                 int bufferSize;
+                byte[] fileKey;
                 // at first read the crypt buffer
                 {
                     byte[] buffer = new byte[4];
                     reader.Read(buffer, 0, buffer.Length);
                     bufferSize = SharedStuff.BytesToInt(buffer);
-                    bufferSize += 12 + 16; // hmac + nonce
+                    bufferSize += 12 + 16;
+                }
+                // now read the key that is used to encrypt this file
+                {
+                    byte[] buffer = new byte[12 + 32 + 16];
+                    reader.Read(buffer, 0, buffer.Length);
+                    fileKey = AesGcmDecrypt(buffer, key);
                 }
                 // now read the input file; "bufferSize" bytes at a time
                 int readCount;
@@ -216,8 +231,8 @@ namespace Chat
                 {
                     if (readBytes.Length > readCount)
                         Array.Resize(ref readBytes,
-                            readCount); // this is the last chunk of file; Do not encrypt all of the data in readBytes
-                    byte[] decrypted = AesGcmDecrypt(readBytes, key);
+                            readCount); // this is the last chunk of file; Do not decrypt all of the data in readBytes
+                    byte[] decrypted = AesGcmDecrypt(readBytes, fileKey);
                     writer.Write(decrypted, 0, decrypted.Length);
                 }
             }
