@@ -152,7 +152,7 @@ namespace Chat
                             Payload = new JsonTypes.SendMessagePayload
                             {
                                 To = username,
-                                Message = JsonConvert.SerializeObject(new JsonTypes.FileInfo
+                                Message = JsonConvert.SerializeObject(new JsonTypes.FilePayload
                                 {
                                     FileName = Path.GetFileName(PendingMessages[guid].FilePath),
                                     Token = PendingMessages[guid].Token,

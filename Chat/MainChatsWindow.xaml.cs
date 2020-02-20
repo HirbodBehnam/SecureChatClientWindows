@@ -141,6 +141,7 @@ namespace Chat
                     else
                     {
                         SharedStuff.PendingMessages[status.Id].Sent = status.Ok ? (byte) 0 : (byte) 2;
+                        // Do not remove files from here; They are removed at "finally" block of SharedStuff.UploadFile
                         if(SharedStuff.PendingMessages[status.Id].Type != 1)
                             SharedStuff.PendingMessages.Remove(status.Id);
                     }
@@ -206,6 +207,16 @@ namespace Chat
                         }
                         break;
                     case 1: // File message
+                        //TODO: Fill here
+                        var filePayload = JsonConvert.DeserializeObject<JsonTypes.FilePayload>(msg.Payload.Message);
+                        await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
+                        {
+                            Username = msg.Payload.From,
+                            Type = msg.Type,
+                            Date = msg.Payload.Date,
+                            Payload = filePayload.Token
+                        });
+                        toShowOnMainMenu = filePayload.FileName;
                         break;
                 }
 
@@ -260,7 +271,7 @@ namespace Chat
 
                 // update the open windows
                 if (open)
-                    OpenWindowsList[msg.Payload.From].AddMessage(false, toShowOnMainMenu, msg.Payload.Date, 0);
+                    OpenWindowsList[msg.Payload.From].AddMessage(false, toShowOnMainMenu, msg.Payload.Date, msg.Type);
             }
             catch (Exception ex)
             {

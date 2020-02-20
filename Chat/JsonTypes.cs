@@ -149,7 +149,7 @@ namespace Chat
         /// This type is only used when the File Type is 1 (The message is file)
         /// I know they are better ways to do this but fuck it
         /// </summary>
-        public class FileInfo
+        public class FilePayload
         {
             /// <summary>
             /// The token of the file
