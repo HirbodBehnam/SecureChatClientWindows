@@ -122,8 +122,8 @@
     <Compile Include="ChatWindow.xaml.cs">
       <DependentUpon>ChatWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="HttpHelper.cs" />
     <Compile Include="NativeAES.cs" />
-    <Compile Include="ProgressableStreamContent.cs" />
     <Compile Include="SharedStuff.cs" />
     <Compile Include="TextBlockHelper.cs" />
     <Compile Include="ValidationClasses.cs" />

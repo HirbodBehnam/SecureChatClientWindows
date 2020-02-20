@@ -141,7 +141,8 @@ namespace Chat
                     else
                     {
                         SharedStuff.PendingMessages[status.Id].Sent = status.Ok ? (byte) 0 : (byte) 2;
-                        SharedStuff.PendingMessages.Remove(status.Id);
+                        if(SharedStuff.PendingMessages[status.Id].Type != 1)
+                            SharedStuff.PendingMessages.Remove(status.Id);
                     }
                     return;
                 }

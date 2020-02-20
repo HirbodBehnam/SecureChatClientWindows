@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Shapes;
 using MaterialDesignThemes.Wpf;
 using Microsoft.Win32;
 using Newtonsoft.Json;
@@ -55,7 +57,7 @@ namespace Chat
             foreach (var message in messages)
             {
                 string msg = message.Type == 0 ? message.Payload : 
-                    System.IO.Path.GetFileName(
+                    Path.GetFileName(
                         (await SharedStuff.Database.Table<DatabaseHelper.Files>()
                             .Where(file => file.Token == message.Payload).FirstAsync()).Location);
                 MessagesList.Insert(0,new ChatMessagesNotify
@@ -91,7 +93,7 @@ namespace Chat
                     var msgUi = new ChatMessagesNotify
                     {
                         MyMessage = true,
-                        Message = System.IO.Path.GetFileName(ofd.FileName),
+                        Message = Path.GetFileName(ofd.FileName),
                         FullDate = DateTime.Now,
                         Type = 1,
                         Sent = 1,
@@ -107,7 +109,7 @@ namespace Chat
                         Payload = new JsonTypes.SendMessagePayload
                         {
                             To = Username,
-                            Message = System.IO.Path.GetFileName(ofd.FileName)
+                            Message = Path.GetFileName(ofd.FileName)
                         }
                     });
                     SharedStuff.Websocket.SendAsync(json,null);
@@ -355,9 +357,52 @@ namespace Chat
             if(sender is Button btn)
                 if (btn.CommandParameter is string token)
                 {
-                    //TODO: Check if the file exists
-                    var f = await SharedStuff.Database.Table<DatabaseHelper.Files>().Where(file => file.Token == token).FirstAsync();
-                    System.Diagnostics.Process.Start(f.Location);
+                    try
+                    {
+                        var f = await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                            .Where(file => file.Token == token).FirstAsync();
+                        System.Diagnostics.Process.Start(f.Location);
+                    }
+                    catch (Exception ex) when (ex is FileNotFoundException || ex is Win32Exception)
+                    {
+                        // at first check if server has the file
+                        var err = new ErrorDialogSample
+                        {
+                            ErrorText =
+                            {
+                                Text =
+                                    "This file does not exists on your computer. Ask other user to send this file again."
+                            },
+                            ErrorTitle = {Text = "Cannot Open File"}
+                        };
+                        await DialogHost.Show(err, "ChatDialogHost" + Username);
+                    }
+                    catch (InvalidOperationException) // this token does not exists in database
+                    {
+                        // download this file
+                        await Task.Run(async () =>
+                        {
+                            try
+                            {
+                                string downloadFileUrl =
+                                    $"https://{Properties.Settings.Default.ServerAddress}/download?token={token}"; // token does not contain special characters so we are good
+                                string destinationFilePath = Path.Combine(SharedStuff.DownloadPath,"");
+
+                                using (var client = new HttpClientDownloadWithProgress(downloadFileUrl, destinationFilePath))
+                                {
+                                    client.ProgressChanged += (totalFileSize, totalBytesDownloaded, progressPercentage) => {
+                                        Console.WriteLine($"{progressPercentage}% ({totalBytesDownloaded}/{totalFileSize})");
+                                    };
+
+                                    await client.StartDownload();
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(ex.Message);
+                            }
+                        });
+                    }
                 }
         }
         private void ChatWindow_OnClosed(object sender, EventArgs e)

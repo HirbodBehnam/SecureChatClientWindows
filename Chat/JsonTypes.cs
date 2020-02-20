@@ -144,5 +144,28 @@ namespace Chat
             /// </summary>
             public string Message { get; set; }
         }
+        /// <summary>
+        /// This type is serialized as string in <see cref="SendMessagePayload.Message"/> or <see cref="UpdatePayload.Message"/>
+        /// This type is only used when the File Type is 1 (The message is file)
+        /// I know they are better ways to do this but fuck it
+        /// </summary>
+        public class FileInfo
+        {
+            /// <summary>
+            /// The token of the file
+            /// </summary>
+            public string Token { get; set; }
+            /// <summary>
+            /// The name of file
+            /// </summary>
+            public string FileName { get; set; }
+            /// <summary>
+            /// Size of the file
+            /// </summary>
+            /// <remarks>
+            /// TODO: Use this value in UI
+            /// </remarks>
+            public string FileSize { get; set; }
+        }
     }
 }

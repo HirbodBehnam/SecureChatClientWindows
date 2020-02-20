@@ -49,6 +49,11 @@ namespace Chat
         /// Secure random number generator
         /// </summary>
         public static RNGCryptoServiceProvider SecureRandom = new RNGCryptoServiceProvider();
+
+        /// <summary>
+        /// Path that downloads must be saved in
+        /// </summary>
+        public static string DownloadPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"Chat Downloads");
         /// <summary>
         /// Create URL quarry from https://stackoverflow.com/a/829138/4213397
         /// </summary>
@@ -139,6 +144,22 @@ namespace Chat
                         var jsonRes = JsonConvert.DeserializeObject<JsonTypes.ServerStatus>(res);
                         if (!jsonRes.Ok)
                             throw new WebException("Server returned an error: " + response.StatusCode);
+                        // submit the file
+                        Websocket.Send(JsonConvert.SerializeObject(new JsonTypes.SendMessage
+                        {
+                            Id = guid,
+                            Type = 1,
+                            Payload = new JsonTypes.SendMessagePayload
+                            {
+                                To = username,
+                                Message = JsonConvert.SerializeObject(new JsonTypes.FileInfo
+                                {
+                                    FileName = Path.GetFileName(PendingMessages[guid].FilePath),
+                                    Token = PendingMessages[guid].Token,
+                                    FileSize = ByteSizeToString(new FileInfo(PendingMessages[guid].FilePath).Length)
+                                })
+                            }
+                        }));
                         // update UI
                         PendingMessages[guid].Sent = 0;
                         PendingMessages[guid].Progress = 101;
@@ -176,6 +197,22 @@ namespace Chat
                 encryptedFile.Delete();
                 PendingMessages.Remove(guid);
             }
+        }
+        /// <summary>
+        /// Converts byte size to human readable string
+        /// https://stackoverflow.com/a/4975942/4213397
+        /// </summary>
+        /// <param name="byteCount"></param>
+        /// <returns></returns>
+        public static string ByteSizeToString(long byteCount)
+        {
+            string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB
+            if (byteCount == 0)
+                return "0" + suf[0];
+            long bytes = Math.Abs(byteCount);
+            int place = Convert.ToInt32(Math.Floor(Math.Log(bytes, 1024)));
+            double num = Math.Round(bytes / Math.Pow(1024, place), 1);
+            return (Math.Sign(byteCount) * num) + suf[place];
         }
     }
     /// <summary>
