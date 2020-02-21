@@ -56,10 +56,9 @@ namespace Chat
                 _reachedEnd = true;
             foreach (var message in messages)
             {
-                string msg = message.Type == 0 ? message.Payload : 
-                    Path.GetFileName(
-                        (await SharedStuff.Database.Table<DatabaseHelper.Files>()
-                            .Where(file => file.Token == message.Payload).FirstAsync()).Location);
+                string msg = message.Type == 0 ? message.Payload :
+                    (await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                            .Where(file => file.Token == message.Payload).FirstAsync()).Name;
                 MessagesList.Insert(0,new ChatMessagesNotify
                 {
                     MyMessage = message.MyMessage,
@@ -357,10 +356,13 @@ namespace Chat
             if(sender is Button btn)
                 if (btn.CommandParameter is string token)
                 {
+                    DatabaseHelper.Files f = new DatabaseHelper.Files();
                     try
                     {
-                        var f = await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                        f = await SharedStuff.Database.Table<DatabaseHelper.Files>()
                             .Where(file => file.Token == token).FirstAsync();
+                        if (string.IsNullOrEmpty(f.Location))
+                            throw new InvalidOperationException();
                         System.Diagnostics.Process.Start(f.Location);
                     }
                     catch (Exception ex) when (ex is FileNotFoundException || ex is Win32Exception)
@@ -386,7 +388,8 @@ namespace Chat
                             {
                                 string downloadFileUrl =
                                     $"https://{Properties.Settings.Default.ServerAddress}/download?token={token}"; // token does not contain special characters so we are good
-                                string destinationFilePath = Path.Combine(SharedStuff.DownloadPath,"");
+                                //string destinationFilePath = Path.Combine(SharedStuff.DownloadPath,f.Name);
+                                string destinationFilePath = Path.GetTempFileName();
 
                                 using (var client = new HttpClientDownloadWithProgress(downloadFileUrl, destinationFilePath))
                                 {
@@ -396,6 +399,13 @@ namespace Chat
 
                                     await client.StartDownload();
                                 }
+                                // get the key
+                                string key = (await SharedStuff.Database.Table<DatabaseHelper.Users>()
+                                    .Where(user => user.Username == Username).FirstAsync()).Key;
+                                BouncyCastleHelper.AesGcmDecrypt(new FileInfo(destinationFilePath), new FileInfo(Path.Combine(SharedStuff.DownloadPath,f.Name)), key);
+                                await SharedStuff.Database.ExecuteAsync(
+                                    "UPDATE Files SET Location = ? WHERE Token = ?"
+                                    ,Path.Combine(SharedStuff.DownloadPath,f.Name), token);
                             }
                             catch (Exception ex)
                             {

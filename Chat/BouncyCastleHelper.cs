@@ -145,6 +145,16 @@ namespace Chat
         /// <param name="input">The input file to encrypt</param>
         /// <param name="output">Output file to write the encrypted file</param>
         /// <param name="key">The key to encrypt data with it</param>
+        public static void AesGcmEncrypt(FileInfo input, FileInfo output, string key)
+        {
+            AesGcmEncrypt(input, output, Convert.FromBase64String(key), 1024 * 1024);
+        }
+        /// <summary>
+        /// Encrypts a file with AesGcm
+        /// </summary>
+        /// <param name="input">The input file to encrypt</param>
+        /// <param name="output">Output file to write the encrypted file</param>
+        /// <param name="key">The key to encrypt data with it</param>
         /// <remarks>
         /// This function breaks file into 1MB chunks, and encrypts each one separately
         /// After each full chunk the length of it becomes 1024 * 1024 + 28 (28 = 12 + 16) (nonce + hmac)
@@ -197,6 +207,14 @@ namespace Chat
                     writer.Write(tag, 0, 16);
                 }
             }
+        }
+
+        /// <summary>
+        /// Reads and decrypts a file THAT IS ENCRYPTED WITH <see cref="AesGcmEncrypt(FileInfo,FileInfo,byte[],int)"/>
+        /// </summary>
+        public static void AesGcmDecrypt(FileInfo input, FileInfo output, string key)
+        {
+            AesGcmDecrypt(input, output, Convert.FromBase64String(key));
         }
         /// <summary>
         /// Reads and decrypts a file THAT IS ENCRYPTED WITH <see cref="AesGcmEncrypt(FileInfo,FileInfo,byte[],int)"/>

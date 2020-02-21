@@ -113,8 +113,8 @@ namespace Chat
             // at first encrypt the file
             var encryptedFile = new FileInfo(Path.GetTempFileName());
             string username = PendingMessages[guid].With;
-            var key = Convert.FromBase64String((await Database.Table<DatabaseHelper.Users>()
-                .Where(user => user.Username == username).FirstAsync()).Key);
+            string key = (await Database.Table<DatabaseHelper.Users>()
+                .Where(user => user.Username == username).FirstAsync()).Key;
             await Task.Run(() =>
                 BouncyCastleHelper.AesGcmEncrypt(new FileInfo(PendingMessages[guid].FilePath),
                     encryptedFile, key));
@@ -177,7 +177,8 @@ namespace Chat
                             tran.Insert(new DatabaseHelper.Files
                             {
                                 Token = PendingMessages[guid].Token,
-                                Location = PendingMessages[guid].FilePath
+                                Location = PendingMessages[guid].FilePath,
+                                Name = Path.GetFileName(PendingMessages[guid].FilePath)
                             });
                         });
                     }

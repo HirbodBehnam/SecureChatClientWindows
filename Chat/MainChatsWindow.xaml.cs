@@ -69,10 +69,9 @@ namespace Chat
                     if (lastMsgQ.Count > 0)
                     {
                         var lastMsg = lastMsgQ[0];
-                        string msg = lastMsg.Type == 0 ? lastMsg.Payload : 
-                            System.IO.Path.GetFileName(
-                                (await SharedStuff.Database.Table<DatabaseHelper.Files>()
-                                    .Where(file => file.Token == lastMsg.Payload).FirstAsync()).Location);
+                        string msg = lastMsg.Type == 0 ? lastMsg.Payload :
+                            (await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                                    .Where(file => file.Token == lastMsg.Payload).FirstAsync()).Name;
                         msgs[i] = new MainMessagesNotify
                         {
                             Type = (MessageType)lastMsg.Type,
@@ -209,12 +208,20 @@ namespace Chat
                     case 1: // File message
                         //TODO: Fill here
                         var filePayload = JsonConvert.DeserializeObject<JsonTypes.FilePayload>(msg.Payload.Message);
-                        await SharedStuff.Database.InsertAsync(new DatabaseHelper.Messages
+                        await SharedStuff.Database.RunInTransactionAsync(trans =>
                         {
-                            Username = msg.Payload.From,
-                            Type = msg.Type,
-                            Date = msg.Payload.Date,
-                            Payload = filePayload.Token
+                            trans.Insert(new DatabaseHelper.Messages
+                            {
+                                Username = msg.Payload.From,
+                                Type = msg.Type,
+                                Date = msg.Payload.Date,
+                                Payload = filePayload.Token
+                            });
+                            trans.Insert(new DatabaseHelper.Files
+                            {
+                                Token = filePayload.Token,
+                                Name = filePayload.FileName
+                            });
                         });
                         toShowOnMainMenu = filePayload.FileName;
                         break;

@@ -84,6 +84,10 @@ namespace Chat
             /// The location of the file
             /// </summary>
             public string Location { get; set; }
+            /// <summary>
+            /// The name of the file to show
+            /// </summary>
+            public string Name { get; set; }
         }
         /// <summary>
         /// Returns a query where selects a number of messages of a username (Username is defined by ?)
