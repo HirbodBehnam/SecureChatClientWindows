@@ -184,6 +184,7 @@ namespace Chat
                     key = keyList[0].Key;
 
                 string toShowOnMainMenu = "";
+                JsonTypes.FilePayload filePayload = new JsonTypes.FilePayload();
                 switch (msg.Type)
                 {
                     case 0: // Text message
@@ -206,8 +207,7 @@ namespace Chat
                         }
                         break;
                     case 1: // File message
-                        //TODO: Fill here
-                        var filePayload = JsonConvert.DeserializeObject<JsonTypes.FilePayload>(msg.Payload.Message);
+                        filePayload = JsonConvert.DeserializeObject<JsonTypes.FilePayload>(msg.Payload.Message);
                         await SharedStuff.Database.RunInTransactionAsync(trans =>
                         {
                             trans.Insert(new DatabaseHelper.Messages
@@ -278,7 +278,10 @@ namespace Chat
 
                 // update the open windows
                 if (open)
-                    OpenWindowsList[msg.Payload.From].AddMessage(false, toShowOnMainMenu, msg.Payload.Date, msg.Type);
+                    if(msg.Type == 0) // add text messages
+                        OpenWindowsList[msg.Payload.From].AddMessageText(toShowOnMainMenu, msg.Payload.Date);
+                    else if (msg.Type == 1) // add files
+                        OpenWindowsList[msg.Payload.From].AddMessageFile(filePayload.Token,filePayload.FileName,msg.Payload.Date);
             }
             catch (Exception ex)
             {

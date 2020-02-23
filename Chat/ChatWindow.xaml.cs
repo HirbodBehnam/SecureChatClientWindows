@@ -280,38 +280,47 @@ namespace Chat
             }
         }
         /// <summary>
-        /// Adds a message to UI
+        /// Adds a text message to UI; This must be called from <see cref="MainChatsWindow"/>
         /// </summary>
-        /// <param name="myMessage">Is this incoming message or not</param>
-        /// <param name="data">The data of message (plain string or file token)</param>
+        /// <param name="data">The data of message (plain text)</param>
         /// <param name="date">The date this message has been received</param>
-        /// <param name="type">0 -> String message, 1 -> File token</param>
-        public void AddMessage(bool myMessage,string data,DateTime date,byte type)
+        public void AddMessageText(string data,DateTime date)
         {
             _lastMessageIndex++;
             Application.Current.Dispatcher.Invoke(delegate
             {
                 MessagesList.Add(new ChatMessagesNotify
                 {
-                    MyMessage = myMessage,
+                    MyMessage = false,
                     Message = data,
                     FullDate = date,
-                    Type = type,
-                    Sent = myMessage ? (byte)1 : (byte)0
+                    Type = 0,
+                    Sent = 0
                 });
             });
-            if (!myMessage)
+        }
+        /// <summary>
+        /// Adds a file message to UI; This must be called from <see cref="MainChatsWindow"/>
+        /// </summary>
+        /// <param name="token">Token of the file</param>
+        /// <param name="fileName">Name of the file</param>
+        /// <param name="date">The date this message has been received</param>
+        public void AddMessageFile(string token, string fileName ,DateTime date)
+        {
+            _lastMessageIndex++;
+            Application.Current.Dispatcher.Invoke(delegate
             {
-                _stopLoading = true;
-                // scroll to bottom if needed
-                MainScrollViewer.UpdateLayout();
-                if (MainScrollViewer.ScrollableHeight - MainScrollViewer.VerticalOffset < 30)
+                MessagesList.Add(new ChatMessagesNotify
                 {
-                    MainScrollViewer.ScrollToBottom();
-                    MainScrollViewer.UpdateLayout();
-                }
-                _stopLoading = false;
-            }
+                    MyMessage = false,
+                    Message = fileName,
+                    Token = token,
+                    Progress = 101,
+                    FullDate = date,
+                    Type = 1,
+                    Sent = 0
+                });
+            });
         }
         /// <summary>
         /// Use this method to get older messages when VerticalOffset reaches 0 (scrolled to top)
@@ -382,34 +391,54 @@ namespace Chat
                     catch (InvalidOperationException) // this token does not exists in database
                     {
                         // download this file
-                        await Task.Run(async () =>
+                        await Application.Current.Dispatcher.Invoke(async delegate
                         {
+                            ProgressBar bar = ((StackPanel) ((DockPanel) ((Button) sender).Parent).Parent)
+                                .Children[1] as ProgressBar;
+
                             try
                             {
                                 string downloadFileUrl =
                                     $"https://{Properties.Settings.Default.ServerAddress}/download?token={token}"; // token does not contain special characters so we are good
-                                //string destinationFilePath = Path.Combine(SharedStuff.DownloadPath,f.Name);
                                 string destinationFilePath = Path.GetTempFileName();
 
-                                using (var client = new HttpClientDownloadWithProgress(downloadFileUrl, destinationFilePath))
+                                using (var client =
+                                    new HttpClientDownloadWithProgress(downloadFileUrl, destinationFilePath))
                                 {
-                                    client.ProgressChanged += (totalFileSize, totalBytesDownloaded, progressPercentage) => {
-                                        Console.WriteLine($"{progressPercentage}% ({totalBytesDownloaded}/{totalFileSize})");
-                                    };
+                                    client.ProgressChanged +=
+                                        (totalFileSize, totalBytesDownloaded, progressPercentage) =>
+                                        {
+                                            bar.Value = progressPercentage ?? 0;
+                                        };
 
                                     await client.StartDownload();
                                 }
+
                                 // get the key
                                 string key = (await SharedStuff.Database.Table<DatabaseHelper.Users>()
                                     .Where(user => user.Username == Username).FirstAsync()).Key;
-                                BouncyCastleHelper.AesGcmDecrypt(new FileInfo(destinationFilePath), new FileInfo(Path.Combine(SharedStuff.DownloadPath,f.Name)), key);
+                                BouncyCastleHelper.AesGcmDecrypt(new FileInfo(destinationFilePath),
+                                    new FileInfo(Path.Combine(SharedStuff.DownloadPath, f.Name)), key);
                                 await SharedStuff.Database.ExecuteAsync(
                                     "UPDATE Files SET Location = ? WHERE Token = ?"
-                                    ,Path.Combine(SharedStuff.DownloadPath,f.Name), token);
+                                    , Path.Combine(SharedStuff.DownloadPath, f.Name), token);
                             }
                             catch (Exception ex)
                             {
+                                var err = new ErrorDialogSample
+                                {
+                                    ErrorText =
+                                    {
+                                        Text = ex.Message
+                                    },
+                                    ErrorTitle = {Text = "Cannot Download File"}
+                                };
+                                await DialogHost.Show(err, "ChatDialogHost" + Username);
                                 Console.WriteLine(ex.Message);
+                            }
+                            finally
+                            {
+                                bar.Value = 101;
                             }
                         });
                     }
