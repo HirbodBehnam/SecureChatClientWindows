@@ -3,7 +3,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -56,19 +55,36 @@ namespace Chat
                 _reachedEnd = true;
             foreach (var message in messages)
             {
-                string msg = message.Type == 0 ? message.Payload :
-                    (await SharedStuff.Database.Table<DatabaseHelper.Files>()
-                            .Where(file => file.Token == message.Payload).FirstAsync()).Name;
-                MessagesList.Insert(0,new ChatMessagesNotify
+                if (message.Type == 0)
                 {
-                    MyMessage = message.MyMessage,
-                    Message = msg,
-                    FullDate = message.Date,
-                    Type = message.Type,
-                    Sent = 0,
-                    Token = message.Payload,
-                    Progress = 101
-                });
+                    MessagesList.Insert(0,new ChatMessagesNotify
+                    {
+                        MyMessage = message.MyMessage,
+                        Message = message.Payload,
+                        FullDate = message.Date,
+                        Type = message.Type,
+                        Sent = 0,
+                        Progress = 101
+                    });
+                }else if (message.Type == 1)
+                {
+                    var fileInfo = await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                        .FirstAsync(file => file.Token == message.Payload);
+                    var downloadButtonIcon = PackIconKind.Download;
+                    if (!string.IsNullOrEmpty(fileInfo.Location))
+                        downloadButtonIcon = File.Exists(fileInfo.Location) ? PackIconKind.File : PackIconKind.DownloadOff;
+                    MessagesList.Insert(0,new ChatMessagesNotify
+                    {
+                        MyMessage = message.MyMessage,
+                        Message = fileInfo.Name,
+                        FullDate = message.Date,
+                        Type = message.Type,
+                        Sent = 0,
+                        Token = message.Payload,
+                        DownloadButtonIcon = downloadButtonIcon,
+                        Progress = 101
+                    });
+                }
             }
 
             MainScrollViewer.ScrollToBottom(); // Go to the last of scroll view that is actually the first of it
@@ -345,13 +361,43 @@ namespace Chat
                 // insert these messages at the end of the list view (that is first of the collation)
                 foreach (var message in messages)
                 {
-                    MessagesList.Insert(0, new ChatMessagesNotify
+                    /*MessagesList.Insert(0, new ChatMessagesNotify
                     {
                         MyMessage = message.MyMessage,
                         Message = message.Payload,
                         FullDate = message.Date,
                         Type = message.Type
-                    });
+                    });*/
+                    if (message.Type == 0)
+                    {
+                        MessagesList.Insert(0,new ChatMessagesNotify
+                        {
+                            MyMessage = message.MyMessage,
+                            Message = message.Payload,
+                            FullDate = message.Date,
+                            Type = message.Type,
+                            Sent = 0,
+                            Progress = 101
+                        });
+                    }else if (message.Type == 1)
+                    {
+                        var fileInfo = await SharedStuff.Database.Table<DatabaseHelper.Files>()
+                            .FirstAsync(file => file.Token == message.Payload);
+                        var downloadButtonIcon = PackIconKind.Download;
+                        if (!string.IsNullOrEmpty(fileInfo.Location))
+                            downloadButtonIcon = File.Exists(fileInfo.Location) ? PackIconKind.File : PackIconKind.DownloadOff;
+                        MessagesList.Insert(0,new ChatMessagesNotify
+                        {
+                            MyMessage = message.MyMessage,
+                            Message = fileInfo.Name,
+                            FullDate = message.Date,
+                            Type = message.Type,
+                            Sent = 0,
+                            Token = message.Payload,
+                            DownloadButtonIcon = downloadButtonIcon,
+                            Progress = 101
+                        });
+                    }
                 }
                 MainScrollViewer.UpdateLayout();
                 MainScrollViewer.ScrollToVerticalOffset(MainScrollViewer.ScrollableHeight - lastHeight); // tricky part; calculate the delta of height adding and go to that position from top
@@ -372,9 +418,19 @@ namespace Chat
                             .Where(file => file.Token == token).FirstAsync();
                         if (string.IsNullOrEmpty(f.Location))
                             throw new InvalidOperationException();
-                        System.Diagnostics.Process.Start(f.Location);
+                        if (f.Location == " ") // null means the file is not downloaded. ' ' means it does not exists
+                            throw new FileNotFoundException();
+                        if(File.Exists(f.Location)) // check if the downloaded file exists
+                            System.Diagnostics.Process.Start(f.Location);
+                        else
+                        {
+                            await SharedStuff.Database.ExecuteAsync(
+                                "UPDATE Files SET Location = ? WHERE Token = ?"
+                                , " ", token);
+                            throw new FileNotFoundException();
+                        }
                     }
-                    catch (Exception ex) when (ex is FileNotFoundException || ex is Win32Exception)
+                    catch (FileNotFoundException)
                     {
                         // at first check if server has the file
                         var err = new ErrorDialogSample
@@ -395,7 +451,6 @@ namespace Chat
                         {
                             ProgressBar bar = ((StackPanel) ((DockPanel) ((Button) sender).Parent).Parent)
                                 .Children[1] as ProgressBar;
-
                             try
                             {
                                 string downloadFileUrl =
@@ -423,6 +478,23 @@ namespace Chat
                                     "UPDATE Files SET Location = ? WHERE Token = ?"
                                     , Path.Combine(SharedStuff.DownloadPath, f.Name), token);
                             }
+                            catch (FileNotFoundException) // This error means that the files does not exists on server. (it's too old)
+                            {
+                                await SharedStuff.Database.ExecuteAsync(
+                                    "UPDATE Files SET Location = ? WHERE Token = ?"
+                                    , " ", token); // this will make the File.Exists always return false
+                                MessagesList.First(msg => msg.Token == token).DownloadButtonIcon =
+                                    PackIconKind.DownloadOff;
+                                var err = new ErrorDialogSample
+                                {
+                                    ErrorText =
+                                    {
+                                        Text = "This file is too old and could not be downloaded. Ask other user to send this file again."
+                                    },
+                                    ErrorTitle = {Text = "Cannot Download File"}
+                                };
+                                await DialogHost.Show(err, "ChatDialogHost" + Username);
+                            }
                             catch (Exception ex)
                             {
                                 var err = new ErrorDialogSample
@@ -434,7 +506,6 @@ namespace Chat
                                     ErrorTitle = {Text = "Cannot Download File"}
                                 };
                                 await DialogHost.Show(err, "ChatDialogHost" + Username);
-                                Console.WriteLine(ex.Message);
                             }
                             finally
                             {

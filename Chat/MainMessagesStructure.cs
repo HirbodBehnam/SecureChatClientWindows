@@ -137,6 +137,7 @@ namespace Chat
         private DateTime _date;
         private byte _type,_sent;
         private double _progress;
+        private PackIconKind _downloadButtonIcon = PackIconKind.File;
         /// <summary>
         /// True if the user sent this message; If it's an incoming message it's false
         /// </summary>
@@ -266,6 +267,43 @@ namespace Chat
                 _progress = value;
                 OnPropertyChanged();
                 OnPropertyChanged("FileProgressBarEnabled");
+            }
+        }
+
+        /// <summary>
+        /// The icon on the download button to show
+        /// </summary>
+        public PackIconKind DownloadButtonIcon
+        {
+            get => _downloadButtonIcon;
+            set
+            {
+                if (value == _downloadButtonIcon)
+                    return;
+                _downloadButtonIcon = value;
+                OnPropertyChanged();
+                OnPropertyChanged("DownloadButtonTooltip");
+            }
+        }
+        /// <summary>
+        /// The tooltip of the file button according to <see cref="DownloadButtonIcon"/>
+        /// </summary>
+        public string DownloadButtonTooltip
+        {
+            get
+            {
+                // ReSharper disable once SwitchStatementMissingSomeCases
+                switch (DownloadButtonIcon)
+                {
+                    case PackIconKind.File:
+                        return "Open File";
+                    case PackIconKind.Download:
+                        return "Download File";
+                    case PackIconKind.DownloadOff:
+                        return "File Unavailable";
+                    default:
+                        return "";
+                }
             }
         }
         /// <summary>

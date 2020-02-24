@@ -29,7 +29,10 @@ namespace Chat
             _httpClient = new HttpClient {Timeout = TimeSpan.FromDays(1)};
 
             using (var response = await _httpClient.GetAsync(_downloadUrl, HttpCompletionOption.ResponseHeadersRead))
-                await DownloadFileFromHttpResponseMessage(response);
+                if (response.IsSuccessStatusCode)
+                    await DownloadFileFromHttpResponseMessage(response);
+                else if(response.StatusCode == HttpStatusCode.NotFound)
+                    throw new FileNotFoundException();
         }
 
         private async Task DownloadFileFromHttpResponseMessage(HttpResponseMessage response)

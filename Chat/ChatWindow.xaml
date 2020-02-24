@@ -49,9 +49,9 @@
                                             <Button
                                                 Click="OpenFileClicked" CommandParameter="{Binding Path=Token,Mode=OneWay}"
                                                 Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
-                                                ToolTip="Open File"
+                                                ToolTip="{Binding Path=DownloadButtonTooltip,Mode=OneWay}"
                                                 Margin="2.5,2.5,5,2.5">
-                                                <materialDesign:PackIcon Kind="File" Height="24" Width="24" />
+                                                <materialDesign:PackIcon Kind="{Binding Path=DownloadButtonIcon,Mode=OneWay}" Height="24" Width="24" />
                                             </Button>
                                             <TextBlock Text="{Binding Path=Message,Mode=OneWay}" VerticalAlignment="Center"/>
                                         </DockPanel>
